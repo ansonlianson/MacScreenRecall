@@ -6,6 +6,12 @@ struct SelfCheckPanel: View {
     @State private var checking = false
 
     var body: some View {
+        innerBody
+            .padding(12)
+            .glassEffect(.regular, in: .rect(cornerRadius: 10))
+    }
+
+    private var innerBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 if let r = result {

@@ -19,37 +19,9 @@ struct ScheduledTasksEditor: View {
                 } label: { Label("新建", systemImage: "plus") }
             }
             ForEach(tasks) { t in
-                HStack {
-                    Toggle("", isOn: Binding(
-                        get: { t.isEnabled },
-                        set: { newVal in
-                            var n = t; n.enabled = newVal ? 1 : 0
-                            _ = try? ScheduledTasksRepository.upsert(n); load()
-                        }
-                    ))
-                    .labelsHidden()
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(t.name).font(.callout)
-                        Text("\(t.cron) → \(outputLabel(t.outputKind))").font(.caption2).foregroundStyle(.secondary)
-                        if let s = t.lastStatus, let at = t.lastRunAt {
-                            Text("上次：\(formatTime(at))｜\(s)").font(.caption2).foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer()
-                    Button("立即运行") {
-                        Task {
-                            do { _ = try await ScheduledTaskRunner.run(t); load() }
-                            catch { self.error = error.localizedDescription }
-                        }
-                    }
-                    Button {
-                        editing = t
-                    } label: { Image(systemName: "pencil") }
-                    Button(role: .destructive) {
-                        if let id = t.id { ScheduledTasksRepository.delete(id: id); load() }
-                    } label: { Image(systemName: "trash") }
-                }
-                Divider()
+                taskRow(t)
+                    .padding(10)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 10))
             }
         }
         .onAppear { load() }
@@ -65,6 +37,40 @@ struct ScheduledTasksEditor: View {
         .alert("失败", isPresented: .constant(error != nil), actions: {
             Button("好的") { error = nil }
         }, message: { Text(error ?? "") })
+    }
+
+    @ViewBuilder
+    private func taskRow(_ t: ScheduledTaskRow) -> some View {
+        HStack {
+            Toggle("", isOn: Binding(
+                get: { t.isEnabled },
+                set: { newVal in
+                    var n = t; n.enabled = newVal ? 1 : 0
+                    _ = try? ScheduledTasksRepository.upsert(n); load()
+                }
+            ))
+            .labelsHidden()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t.name).font(.callout)
+                Text("\(t.cron) → \(outputLabel(t.outputKind))").font(.caption2).foregroundStyle(.secondary)
+                if let s = t.lastStatus, let at = t.lastRunAt {
+                    Text("上次：\(formatTime(at))｜\(s)").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Button("立即运行") {
+                Task {
+                    do { _ = try await ScheduledTaskRunner.run(t); load() }
+                    catch { self.error = error.localizedDescription }
+                }
+            }
+            Button {
+                editing = t
+            } label: { Image(systemName: "pencil") }
+            Button(role: .destructive) {
+                if let id = t.id { ScheduledTasksRepository.delete(id: id); load() }
+            } label: { Image(systemName: "trash") }
+        }
     }
 
     private func load() {

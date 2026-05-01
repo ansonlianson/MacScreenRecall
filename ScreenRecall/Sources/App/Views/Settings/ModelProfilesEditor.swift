@@ -26,7 +26,8 @@ struct ModelProfilesEditor: View {
                 } onDelete: {
                     deleteCandidate = p
                 }
-                Divider()
+                .padding(10)
+                .glassEffect(.regular, in: .rect(cornerRadius: 10))
             }
         }
         .sheet(item: $editing) { p in

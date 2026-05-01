@@ -65,6 +65,8 @@ struct ReportsView: View {
                             .textSelection(.enabled)
                     }
                     .padding(20)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 14))
+                    .padding(20)
                 } else {
                     Text("选择左侧的一份报告").foregroundStyle(.secondary).padding()
                 }

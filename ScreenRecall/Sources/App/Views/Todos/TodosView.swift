@@ -58,13 +58,18 @@ struct TodosView: View {
                     description: Text("点 \"立即抽取\" 把当日候选生成可执行 TODO。")
                 )
             } else {
-                List {
-                    ForEach(todos) { t in
-                        TodoRowView(todo: t,
-                                    onToggleDone: { update(id: $0, status: $1) })
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(todos) { t in
+                            TodoRowView(todo: t,
+                                        onToggleDone: { update(id: $0, status: $1) })
+                                .padding(12)
+                                .glassEffect(.regular, in: .rect(cornerRadius: 10))
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.bottom)
                 }
-                .listStyle(.inset)
             }
         }
         .navigationTitle("TODO")

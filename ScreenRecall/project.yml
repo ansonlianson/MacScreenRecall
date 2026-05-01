@@ -23,6 +23,9 @@ packages:
   KeychainAccess:
     url: https://github.com/kishikawakatsumi/KeychainAccess
     from: 4.2.2
+  swift-markdown-ui:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: 2.4.1
 targets:
   ScreenRecall:
     type: application
@@ -69,3 +72,5 @@ targets:
       - package: GRDB
         product: GRDB
       - package: KeychainAccess
+      - package: swift-markdown-ui
+        product: MarkdownUI

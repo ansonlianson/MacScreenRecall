@@ -22,6 +22,7 @@
 		46BC81963AC0FFFC2BDF8862 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB577ED5513FB40DC4A32EB6 /* MainWindow.swift */; };
 		47E0FE8DA57388464BBB387E /* PermissionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAD1278D611D11515C320F0 /* PermissionsService.swift */; };
 		50FC5737E01135C5416B14CC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3AF6238490137EF663F0062 /* AppState.swift */; };
+		59E241C2EBF0777D38052A14 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AA6286D323C0A961E421B55 /* MarkdownUI */; };
 		5ABBE9D7C2AC0250243D6D42 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B7B663010C84AFE89FD9905 /* SettingsStore.swift */; };
 		62DF474A8B5DAB1FC4F377C4 /* CJKTokenizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25AF2E7F5525230FFE4CF3BE /* CJKTokenizer.swift */; };
 		6E5B83C96C7DD4AF6F83E076 /* CaptureScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 707F394F0D3515F85EF8A9ED /* CaptureScheduler.swift */; };
@@ -112,6 +113,7 @@
 			files = (
 				A97C3A2482D9E44895E1573C /* GRDB in Frameworks */,
 				A63B39244794CC4CE7AE071F /* KeychainAccess in Frameworks */,
+				59E241C2EBF0777D38052A14 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -374,6 +376,7 @@
 			packageProductDependencies = (
 				478EAEE53FFDAF80617752D1 /* GRDB */,
 				752CF479D906F5303FB00844 /* KeychainAccess */,
+				9AA6286D323C0A961E421B55 /* MarkdownUI */,
 			);
 			productName = ScreenRecall;
 			productReference = 91F48744D5D1ACBA0F3652D3 /* ScreenRecall.app */;
@@ -406,6 +409,7 @@
 			packageReferences = (
 				A56026AD1A1D54428B24A106 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 				A8AF1B506AE854729CA79FAE /* XCRemoteSwiftPackageReference "KeychainAccess" */,
+				E176B31FBD692825156C7EC3 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -688,6 +692,14 @@
 				minimumVersion = 4.2.2;
 			};
 		};
+		E176B31FBD692825156C7EC3 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -700,6 +712,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A8AF1B506AE854729CA79FAE /* XCRemoteSwiftPackageReference "KeychainAccess" */;
 			productName = KeychainAccess;
+		};
+		9AA6286D323C0A961E421B55 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E176B31FBD692825156C7EC3 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

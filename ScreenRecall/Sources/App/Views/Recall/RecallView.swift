@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MarkdownUI
 
 /// 「回溯」Tab —— 合并旧的「时间线」与「检索」。
 /// 顶部搜索/提问；下方一条时间线展示当日所有 done 帧；
@@ -299,9 +300,9 @@ private struct AnswerCard: View {
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.caption).foregroundStyle(.orange)
             }
-            Text(result.answer)
+            Markdown(result.answer)
+                .markdownTheme(.gitHub)
                 .textSelection(.enabled)
-                .font(.body)
             if !result.hits.isEmpty {
                 Divider()
                 Text("引用帧（点击跳到对应时间）— 共 \(result.hits.count) 条")

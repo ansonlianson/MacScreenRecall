@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MarkdownUI
 
 struct ReportsView: View {
     @State private var reports: [ReportRow] = []
@@ -59,8 +60,9 @@ struct ReportsView: View {
                                 .help("在 Finder 中显示 .md 文件")
                         }
                         Divider()
-                        Text(LocalizedStringKey(r.markdown))
-                            .font(.body).textSelection(.enabled)
+                        Markdown(r.markdown)
+                            .markdownTheme(.gitHub)
+                            .textSelection(.enabled)
                     }
                     .padding(20)
                 } else {

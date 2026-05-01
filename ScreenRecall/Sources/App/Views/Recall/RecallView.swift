@@ -339,7 +339,7 @@ private struct AnswerCard: View {
                     Text("FTS 表达式：\(result.diagnostics.ftsExpression.isEmpty ? "(空)" : result.diagnostics.ftsExpression)")
                         .lineLimit(1)
                     Spacer()
-                    Text("命中：\(result.hits.count) 帧" + (result.diagnostics.fellBackToWindow ? "（时间窗兜底）" : ""))
+                    Text("命中：FTS \(result.diagnostics.ftsHitCount) · Emb \(result.diagnostics.embeddingHitCount) · 合并 \(result.hits.count)" + (result.diagnostics.fellBackToWindow ? "（时间窗兜底）" : ""))
                 }
             }
             .font(.caption).foregroundStyle(.secondary)

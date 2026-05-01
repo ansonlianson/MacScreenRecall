@@ -17,6 +17,8 @@ struct ScreenRecallApp: App {
             await Self.warmCounters()
             DebugFile.write("App init Task: starting Tier1 workers")
             await Tier1Pipeline.shared.startWorkers()
+            DebugFile.write("App init Task: starting EmbeddingService")
+            await EmbeddingService.shared.start()
             DebugFile.write("App init Task: starting CaptureScheduler")
             CaptureScheduler.shared.start()
             DebugFile.write("App init Task: starting Tier2Scheduler")

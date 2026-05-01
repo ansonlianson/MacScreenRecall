@@ -170,6 +170,13 @@ actor Tier1Pipeline {
             try AnalysisRepository.upsert(analysis)
             FrameRepository.updateStatus(frameId, status: .done)
 
+            // 异步提交 embedding（不阻塞）
+            let embedText = [analysis.summary, analysis.keyText, analysis.tagsJson]
+                .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " | ")
+            if !embedText.isEmpty {
+                Task { await EmbeddingService.shared.enqueue(frameId: frameId, text: embedText) }
+            }
+
             await MainActor.run {
                 AppState.shared.lastAnalyzedAt = Date()
                 AppState.shared.lastError = nil

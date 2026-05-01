@@ -17,7 +17,7 @@ struct AskResult {
 enum AnswerPipeline {
     static func ask(_ question: String, topK: Int = 3) async -> AskResult {
         let plan = await QuestionPlanner.plan(question: question)
-        let retrieved = (try? Retriever.retrieve(plan: plan, limit: 20)) ?? (hits: [], diag: RetrieveDiagnostics())
+        let retrieved = await Retriever.retrieveHybrid(plan: plan, limit: 20)
         let hits = retrieved.hits
         let diag = retrieved.diag
 

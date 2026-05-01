@@ -184,6 +184,19 @@ enum Schema {
             """)
         }
 
+        m.registerMigration("v5.embeddings") { db in
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS analysis_embeddings (
+                  frame_id INTEGER PRIMARY KEY REFERENCES frames(id) ON DELETE CASCADE,
+                  embedder TEXT NOT NULL,
+                  dim INTEGER NOT NULL,
+                  vector BLOB NOT NULL,
+                  created_at INTEGER NOT NULL
+                );
+            """)
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_emb_embedder ON analysis_embeddings(embedder);")
+        }
+
         m.registerMigration("v4.fts_trigram") { db in
             // unicode61 对中文整段不分词 → MATCH '工作' 命中失败。
             // 改用 SQLite 官方 trigram 分词器（3.34+），按 3-codepoint 子串索引，

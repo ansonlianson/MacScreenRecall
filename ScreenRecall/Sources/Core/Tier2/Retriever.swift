@@ -40,6 +40,39 @@ enum Retriever {
         }
     }
 
+    /// Hybrid 检索：FTS（trigram + LIKE）+ Embedding 余弦排序，按 RRF 融合
+    static func retrieveHybrid(plan: AskPlan, limit: Int = 20) async -> (hits: [RetrievedHit], diag: RetrieveDiagnostics) {
+        // 同时跑 FTS 与 Embedding，融合
+        var diag = RetrieveDiagnostics()
+        var ftsHits: [RetrievedHit] = []
+        if let result = try? retrieve(plan: plan, limit: limit) {
+            ftsHits = result.hits
+            diag = result.diag
+        }
+        let embIds: [(Int64, Float)] = (try? await EmbeddingService.shared.searchSimilar(
+            query: plan.rawQuestion,
+            sinceMs: plan.rangeStartMs,
+            untilMs: plan.rangeEndMs,
+            topK: limit
+        )) ?? []
+        diag.embeddingHitCount = embIds.count
+
+        // 没 embedding 数据 → 只返回 FTS
+        if embIds.isEmpty { return (ftsHits, diag) }
+
+        // RRF 融合：score = 1/(k+rank_fts) + 1/(k+rank_emb)
+        let k: Double = 60
+        var rrf: [Int64: Double] = [:]
+        for (i, h) in ftsHits.enumerated() { rrf[h.id, default: 0] += 1.0 / (k + Double(i)) }
+        for (i, pair) in embIds.enumerated() { rrf[pair.0, default: 0] += 1.0 / (k + Double(i)) }
+        let topIds = rrf.sorted { $0.value > $1.value }.prefix(limit).map { $0.key }
+
+        let merged: [RetrievedHit] = (try? await Database.shared.pool.read { db in
+            try fetchHits(db: db, frameIds: topIds)
+        }) ?? ftsHits
+        return (merged, diag)
+    }
+
     /// 按 AskPlan 检索：FTS 关键字 + 时间窗 + status='done'，返回带诊断信息
     static func retrieve(plan: AskPlan, limit: Int = 20) throws -> (hits: [RetrievedHit], diag: RetrieveDiagnostics) {
         var diag = RetrieveDiagnostics()

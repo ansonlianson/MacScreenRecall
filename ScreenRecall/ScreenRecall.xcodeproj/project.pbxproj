@@ -10,10 +10,10 @@
 		02B7357B3327E3C71F5CFCF7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0D280FC62BA19C64CF28B0 /* SettingsView.swift */; };
 		0C570653F8026B24935F9883 /* TodosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 717511DFE6651CADE223D7E5 /* TodosView.swift */; };
 		1299EC943228C1E008FC66C7 /* Prompts in Resources */ = {isa = PBXBuildFile; fileRef = 1710BEB1587467FF40D1B40C /* Prompts */; };
-		198E5C763FE192BDB2D3010B /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF42A6FAE9730D24464D97CE /* TimelineView.swift */; };
 		1A88392D6ABDDB913129DBF9 /* AnswerPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58075E35D564FF46AAD1C5CD /* AnswerPipeline.swift */; };
 		1AF080A8A5708617476698AB /* AnthropicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9359AC8A98D719AA8A0F4508 /* AnthropicProvider.swift */; };
 		1C9F45BBABD587394370AB6D /* Repositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE8879F777A5BBC034D307D9 /* Repositories.swift */; };
+		2050760DA98D994BD15172E7 /* FrameDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA17A07746C9BF4B3887B021 /* FrameDetailSheet.swift */; };
 		27149DBBC6BA6E3F085DF4AE /* TodoExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7397CACFAD270B5A25C30F1 /* TodoExtractor.swift */; };
 		2DD9B7F260AEA984DD4B8C12 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8F29E100937BE0573A2140 /* OverviewView.swift */; };
 		37E7747E66BDC0483F6CF717 /* SelfCheckService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12EF6608589793A21E0CC6D7 /* SelfCheckService.swift */; };
@@ -35,6 +35,7 @@
 		AC3680481D04C7CE8DF1215E /* ScheduledTasksEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4796CBB58B6E514473A6818 /* ScheduledTasksEditor.swift */; };
 		B388AD3ABDF6B82F35AD2B87 /* ReportsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27232A149BD6E4B4678009B8 /* ReportsRepository.swift */; };
 		BA7159E8CD75CEA858C007AE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75B1B6A69594B9F68AC31DB7 /* Models.swift */; };
+		C7E88112D7A554A1D2C73B8B /* RecallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6145CED70FB22973F7C4A408 /* RecallView.swift */; };
 		CAD132B29FA100F62917BD76 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D51A3941E2ACFD47DB1B3B /* AppLogger.swift */; };
 		CFFAC2708CBBA397B5E12ACF /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A37EAB87A25BB545CBE465 /* ReportsView.swift */; };
 		CFFC6122051ECC5EEF66A0C4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 63E1106BD1228880F840D1E2 /* Assets.xcassets */; };
@@ -42,7 +43,6 @@
 		D8B323784F76A02FADBF61CB /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74AA63018C4E07A56566F9D0 /* KeychainStore.swift */; };
 		E5124E6996942096AA08EDBE /* Tier1Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BE78A108A2BE69E4F667801 /* Tier1Pipeline.swift */; };
 		E9AAAC4F2A33AD9BF904B101 /* QuestionPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6F0B441A85C9BD56A723C3 /* QuestionPlanner.swift */; };
-		EA438EED2E7087FD05E21C00 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D90DFDAC7A14F9889D8EC6D /* SearchView.swift */; };
 		EC8BF50ABFE9E804670E2971 /* OpenAIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6775D0CD5EB0F70988A4354E /* OpenAIProvider.swift */; };
 		ED41E21DE017D0C7A8B31681 /* Tier2Scheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A4EB63B95970D225CDC66E /* Tier2Scheduler.swift */; };
 		EDA8A7F4A163FC1A92CA01C0 /* ScreenRecallApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610399B637BDCD4ABC157823 /* ScreenRecallApp.swift */; };
@@ -54,7 +54,6 @@
 		0588242F224E509A96A134EC /* SelfCheckPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfCheckPanel.swift; sourceTree = "<group>"; };
 		0A8F29E100937BE0573A2140 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		0B4B88EDA1D3EEED5B3CE4DE /* ScheduledTasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledTasks.swift; sourceTree = "<group>"; };
-		0D90DFDAC7A14F9889D8EC6D /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		12EF6608589793A21E0CC6D7 /* SelfCheckService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfCheckService.swift; sourceTree = "<group>"; };
 		1710BEB1587467FF40D1B40C /* Prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Prompts; path = Resources/Prompts; sourceTree = SOURCE_ROOT; };
 		24D51A3941E2ACFD47DB1B3B /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
@@ -65,6 +64,7 @@
 		53409AEB5A2E70FA90DC58C9 /* Retriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Retriever.swift; sourceTree = "<group>"; };
 		58075E35D564FF46AAD1C5CD /* AnswerPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnswerPipeline.swift; sourceTree = "<group>"; };
 		610399B637BDCD4ABC157823 /* ScreenRecallApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecallApp.swift; sourceTree = "<group>"; };
+		6145CED70FB22973F7C4A408 /* RecallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecallView.swift; sourceTree = "<group>"; };
 		63E1106BD1228880F840D1E2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6775D0CD5EB0F70988A4354E /* OpenAIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIProvider.swift; sourceTree = "<group>"; };
 		67A37EAB87A25BB545CBE465 /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
@@ -80,10 +80,10 @@
 		91F48744D5D1ACBA0F3652D3 /* ScreenRecall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenRecall.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9359AC8A98D719AA8A0F4508 /* AnthropicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicProvider.swift; sourceTree = "<group>"; };
 		9BE78A108A2BE69E4F667801 /* Tier1Pipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tier1Pipeline.swift; sourceTree = "<group>"; };
+		AA17A07746C9BF4B3887B021 /* FrameDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameDetailSheet.swift; sourceTree = "<group>"; };
 		AE0D280FC62BA19C64CF28B0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B17E3F101C60F4C5CE6A2A23 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		B7397CACFAD270B5A25C30F1 /* TodoExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoExtractor.swift; sourceTree = "<group>"; };
-		BF42A6FAE9730D24464D97CE /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
 		C3803F93A918CF9BB41DBCB3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C3E61227131109D9990C4CFA /* NotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCenter.swift; sourceTree = "<group>"; };
 		D4796CBB58B6E514473A6818 /* ScheduledTasksEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledTasksEditor.swift; sourceTree = "<group>"; };
@@ -128,6 +128,15 @@
 				AE0D280FC62BA19C64CF28B0 /* SettingsView.swift */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		22DA7951B12E457F72A7037A /* Recall */ = {
+			isa = PBXGroup;
+			children = (
+				AA17A07746C9BF4B3887B021 /* FrameDetailSheet.swift */,
+				6145CED70FB22973F7C4A408 /* RecallView.swift */,
+			);
+			path = Recall;
 			sourceTree = "<group>";
 		};
 		2FB3C34FB1BC2C2D7115FC18 /* Scheduler */ = {
@@ -248,14 +257,6 @@
 			path = Capture;
 			sourceTree = "<group>";
 		};
-		A03979E80B7218790D0AC653 /* Timeline */ = {
-			isa = PBXGroup;
-			children = (
-				BF42A6FAE9730D24464D97CE /* TimelineView.swift */,
-			);
-			path = Timeline;
-			sourceTree = "<group>";
-		};
 		AA50FC7689E6F8AD22510297 /* Logging */ = {
 			isa = PBXGroup;
 			children = (
@@ -270,21 +271,12 @@
 			isa = PBXGroup;
 			children = (
 				6A8914AD6A3E234ED80A8EE7 /* Overview */,
+				22DA7951B12E457F72A7037A /* Recall */,
 				EC2EF18E68753DD65D058C34 /* Reports */,
-				E05E6D52C300B5F0DEA67592 /* Search */,
 				06A85E8C1A9694B3E0E83E30 /* Settings */,
-				A03979E80B7218790D0AC653 /* Timeline */,
 				FBD1B7471AEB96A8BB29EB0E /* Todos */,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		E05E6D52C300B5F0DEA67592 /* Search */ = {
-			isa = PBXGroup;
-			children = (
-				0D90DFDAC7A14F9889D8EC6D /* SearchView.swift */,
-			);
-			path = Search;
 			sourceTree = "<group>";
 		};
 		E9C18FF200ADB92C93AAECED /* Sources */ = {
@@ -426,6 +418,7 @@
 				6E5B83C96C7DD4AF6F83E076 /* CaptureScheduler.swift in Sources */,
 				425C237186745AF88C88F913 /* DailyReportService.swift in Sources */,
 				93F94845E43D018FF6A0E665 /* Database.swift in Sources */,
+				2050760DA98D994BD15172E7 /* FrameDetailSheet.swift in Sources */,
 				D8B323784F76A02FADBF61CB /* KeychainStore.swift in Sources */,
 				9A8CF2ED47A4D7DBFC576F1E /* LLMProvider.swift in Sources */,
 				9A4A1BA0E2204751A8ED13BC /* LaunchAgentService.swift in Sources */,
@@ -437,6 +430,7 @@
 				2DD9B7F260AEA984DD4B8C12 /* OverviewView.swift in Sources */,
 				47E0FE8DA57388464BBB387E /* PermissionsService.swift in Sources */,
 				E9AAAC4F2A33AD9BF904B101 /* QuestionPlanner.swift in Sources */,
+				C7E88112D7A554A1D2C73B8B /* RecallView.swift in Sources */,
 				B388AD3ABDF6B82F35AD2B87 /* ReportsRepository.swift in Sources */,
 				CFFAC2708CBBA397B5E12ACF /* ReportsView.swift in Sources */,
 				1C9F45BBABD587394370AB6D /* Repositories.swift in Sources */,
@@ -445,14 +439,12 @@
 				AC3680481D04C7CE8DF1215E /* ScheduledTasksEditor.swift in Sources */,
 				F7D263F18D0B58C75B1BB842 /* ScreenCapturer.swift in Sources */,
 				EDA8A7F4A163FC1A92CA01C0 /* ScreenRecallApp.swift in Sources */,
-				EA438EED2E7087FD05E21C00 /* SearchView.swift in Sources */,
 				83F03A390E66168A2C2AADFF /* SelfCheckPanel.swift in Sources */,
 				37E7747E66BDC0483F6CF717 /* SelfCheckService.swift in Sources */,
 				5ABBE9D7C2AC0250243D6D42 /* SettingsStore.swift in Sources */,
 				02B7357B3327E3C71F5CFCF7 /* SettingsView.swift in Sources */,
 				E5124E6996942096AA08EDBE /* Tier1Pipeline.swift in Sources */,
 				ED41E21DE017D0C7A8B31681 /* Tier2Scheduler.swift in Sources */,
-				198E5C763FE192BDB2D3010B /* TimelineView.swift in Sources */,
 				27149DBBC6BA6E3F085DF4AE /* TodoExtractor.swift in Sources */,
 				0C570653F8026B24935F9883 /* TodosView.swift in Sources */,
 			);

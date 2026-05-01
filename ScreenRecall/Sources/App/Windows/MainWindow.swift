@@ -1,13 +1,12 @@
 import SwiftUI
 
 enum SidebarTab: String, CaseIterable, Identifiable, Hashable {
-    case overview, timeline, search, reports, todos, settings
+    case overview, recall, reports, todos, settings
     var id: String { rawValue }
     var title: String {
         switch self {
         case .overview: return "概览"
-        case .timeline: return "时间线"
-        case .search:   return "检索"
+        case .recall:   return "回溯"
         case .reports:  return "报告"
         case .todos:    return "TODO"
         case .settings: return "设置"
@@ -16,8 +15,7 @@ enum SidebarTab: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .overview: return "rectangle.grid.2x2"
-        case .timeline: return "calendar.day.timeline.left"
-        case .search:   return "magnifyingglass"
+        case .recall:   return "clock.arrow.circlepath"
         case .reports:  return "doc.text"
         case .todos:    return "checklist"
         case .settings: return "gearshape"
@@ -40,8 +38,7 @@ struct MainWindow: View {
         } detail: {
             switch selection ?? .overview {
             case .overview: OverviewView()
-            case .timeline: TimelineView()
-            case .search:   SearchView()
+            case .recall:   RecallView()
             case .reports:  ReportsView()
             case .todos:    TodosView()
             case .settings: SettingsView()

@@ -112,9 +112,11 @@ final class SettingsStore {
         seedDevKeysIfNeeded()
     }
 
-    /// 开发期便利：若 dashscope profile 还没 key，预填一次开发 key。
+    /// 开发期便利：若 env `SR_DEV_DASHSCOPE_KEY` 存在且 dashscope profile 还没 key，
+    /// 预填一次。**不再把 key 硬编码进源码**——Release 包不会带任何凭据。
     private func seedDevKeysIfNeeded() {
-        let devKey = "sk-sp-0ce1aa0951844541af3452efc6d96649"
+        guard let devKey = ProcessInfo.processInfo.environment["SR_DEV_DASHSCOPE_KEY"],
+              !devKey.isEmpty else { return }
         for p in settings.profiles where p.endpoint.contains("dashscope") {
             if KeychainStore.get(forProfileId: p.id) == nil {
                 KeychainStore.set(forProfileId: p.id, value: devKey)

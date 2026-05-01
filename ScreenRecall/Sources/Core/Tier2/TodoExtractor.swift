@@ -114,15 +114,17 @@ enum TodoExtractor {
         """
         let user = "candidates：\n\(listing)"
 
-        let (settings, apiKey) = await MainActor.run {
-            (SettingsStore.shared.settings.tier2, KeychainStore.get(.tier2ApiKey))
+        let bundle = await MainActor.run { () -> (ModelProfile, String?)? in
+            guard let p = SettingsStore.shared.tier2Profile() else { return nil }
+            return (p, KeychainStore.get(forProfileId: p.id))
         }
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+        guard let (profile, apiKey) = bundle else { return candidates }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
         let req = LLMRequest(
             system: system,
             messages: [LLMMessage(role: .user, text: user)],
             images: [],
-            model: settings.model,
+            model: profile.model,
             temperature: 0.0,
             maxTokens: 800,
             timeout: 60,

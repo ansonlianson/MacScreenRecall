@@ -20,9 +20,9 @@ actor Tier1Pipeline {
         await reconcileWorkers()
     }
 
-    /// 根据 settings.tier1.concurrency 调整 worker 数量（热生效）。
+    /// 根据 settings.tier1Concurrency 调整 worker 数量（热生效）。
     func reconcileWorkers() async {
-        let target = max(1, min(4, await MainActor.run { SettingsStore.shared.settings.tier1.concurrency }))
+        let target = max(1, min(4, await MainActor.run { SettingsStore.shared.settings.tier1Concurrency }))
         if target == workerCount { return }
         DebugFile.write("Tier1 reconcile workers \(workerCount) → \(target)")
         // 简化：把全部停掉再起 target 个
@@ -117,22 +117,27 @@ actor Tier1Pipeline {
     }
 
     private func analyze(frameId: Int64, jpeg: Data) async {
-        let (settings, apiKey, prompt) = await MainActor.run { () -> (ProviderSettings, String?, String) in
-            let s = SettingsStore.shared.settings.tier1
-            let key = KeychainStore.get(.tier1ApiKey)
-            let p = PromptLoader.tier1System
-            return (s, key, p)
+        let bundle = await MainActor.run { () -> (ModelProfile, String?, String)? in
+            guard let p = SettingsStore.shared.tier1Profile() else { return nil }
+            let key = KeychainStore.get(forProfileId: p.id)
+            return (p, key, PromptLoader.tier1System)
         }
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+        guard let (profile, apiKey, prompt) = bundle else {
+            FrameRepository.updateStatus(frameId, status: .failed)
+            DebugFile.write("frame \(frameId) FAILED: 未配置 Tier-1 模型")
+            await MainActor.run { AppState.shared.lastError = "未配置 Tier-1 模型，请到设置 → 模型管理添加" }
+            return
+        }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
 
         let request = LLMRequest(
             system: prompt,
             messages: [LLMMessage(role: .user, text: "请分析这张截图并按 schema 输出 JSON。")],
             images: [jpeg],
-            model: settings.model,
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens,
-            timeout: TimeInterval(settings.timeoutSec),
+            model: profile.model,
+            temperature: 0.2,
+            maxTokens: profile.maxTokens,
+            timeout: TimeInterval(profile.timeoutSec),
             responseFormat: .json,
             disableThinking: true
         )
@@ -146,7 +151,7 @@ actor Tier1Pipeline {
             let analysis = AnalysisRow(
                 frameId: frameId,
                 provider: provider.name,
-                model: settings.model,
+                model: profile.model,
                 analyzedAt: Int64(Date().timeIntervalSince1970 * 1000),
                 summary: parsed["summary"] as? String,
                 app: parsed["app"] as? String,

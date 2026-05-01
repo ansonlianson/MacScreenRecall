@@ -1,17 +1,17 @@
 import Foundation
 
 struct OpenAIProvider: LLMProvider {
-    let kind: ProviderKind
-    var name: String { kind == .local ? "lmstudio" : "openai" }
+    let isLocal: Bool
+    var name: String { isLocal ? "lmstudio" : "openai" }
     var supportsVision: Bool { true }
 
     let endpoint: String
     let apiKey: String?
 
-    init(endpoint: String, apiKey: String?, kind: ProviderKind) {
+    init(endpoint: String, apiKey: String?, isLocal: Bool = false) {
         self.endpoint = endpoint
         self.apiKey = apiKey
-        self.kind = kind
+        self.isLocal = isLocal
     }
 
     func complete(_ request: LLMRequest) async throws -> LLMResponse {
@@ -56,7 +56,7 @@ struct OpenAIProvider: LLMProvider {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let key = apiKey, !key.isEmpty {
             req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        } else if kind != .local {
+        } else if !isLocal {
             throw LLMProviderError.missingAPIKey
         }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)

@@ -174,18 +174,23 @@ enum ScheduledTaskRunner {
         输出要求：\(outputHint)
         """
 
-        let (settings, apiKey) = await MainActor.run {
-            (SettingsStore.shared.settings.tier2, KeychainStore.get(.tier2ApiKey))
+        let bundle = await MainActor.run { () -> (ModelProfile, String?)? in
+            guard let p = SettingsStore.shared.tier2Profile() else { return nil }
+            return (p, KeychainStore.get(forProfileId: p.id))
         }
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+        guard let (profile, apiKey) = bundle else {
+            ScheduledTasksRepository.setLastRun(id: task.id ?? 0, at: nowMs, status: "fail: no Tier-2 profile")
+            return "未配置 Tier-2 模型"
+        }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
         let req = LLMRequest(
             system: systemBase,
             messages: [LLMMessage(role: .user, text: userMsg)],
             images: [],
-            model: settings.model,
+            model: profile.model,
             temperature: 0.4,
-            maxTokens: max(1500, settings.maxTokens),
-            timeout: TimeInterval(settings.timeoutSec),
+            maxTokens: max(1500, profile.maxTokens),
+            timeout: TimeInterval(profile.timeoutSec),
             responseFormat: task.outputKind == "todo" ? .json : .text,
             disableThinking: false
         )
@@ -215,7 +220,7 @@ enum ScheduledTaskRunner {
                 id: nil, kind: "custom",
                 rangeStart: startMs, rangeEnd: nowMs,
                 generatedAt: nowMs,
-                provider: provider.name, model: settings.model,
+                provider: provider.name, model: profile.model,
                 markdown: text,
                 metaJson: jsonString(["task": task.name, "tokens_in": resp.tokensIn ?? 0, "tokens_out": resp.tokensOut ?? 0])
             )

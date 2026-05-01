@@ -24,22 +24,35 @@ struct SettingsView: View {
                     }
                 }
                 Toggle("暂停采集", isOn: $store.settings.capture.paused)
+                Stepper("Tier-1 并发：\(store.settings.tier1Concurrency)",
+                        value: $store.settings.tier1Concurrency, in: 1...4)
                 Stepper("保留原图天数：\(store.settings.retention.imagesDays)",
                         value: $store.settings.retention.imagesDays, in: 1...365)
                 Stepper("保留分析天数：\(store.settings.retention.analysesDays)",
                         value: $store.settings.retention.analysesDays, in: 1...1095)
             }
 
-            Section("Tier-1 实时分析") {
-                providerEditor(for: $store.settings.tier1)
-                SecureField("API Key", text: $store.tier1ApiKey)
-                    .textFieldStyle(.roundedBorder)
+            Section("模型管理") {
+                ModelProfilesEditor()
             }
 
-            Section("Tier-2 衍生能力") {
-                providerEditor(for: $store.settings.tier2)
-                SecureField("API Key", text: $store.tier2ApiKey)
-                    .textFieldStyle(.roundedBorder)
+            Section("用途绑定") {
+                ProfilePicker(
+                    title: "Tier-1（实时分析）",
+                    selection: $store.settings.tier1ProfileId,
+                    profiles: store.settings.profiles.filter { $0.kind == .chat }
+                )
+                ProfilePicker(
+                    title: "Tier-2（问答 / 报告 / TODO 二审）",
+                    selection: $store.settings.tier2ProfileId,
+                    profiles: store.settings.profiles.filter { $0.kind == .chat }
+                )
+                ProfilePicker(
+                    title: "Embedding（语义检索）",
+                    selection: $store.settings.embeddingProfileId,
+                    profiles: store.settings.profiles.filter { $0.kind == .embedding },
+                    placeholder: "未指定 → 用 Apple NL 兜底"
+                )
                 if !tier2SupportsVision {
                     Label("当前 Tier-2 模型可能不支持视觉，画面细节追问将不可用",
                           systemImage: "exclamationmark.triangle.fill")
@@ -62,24 +75,6 @@ struct SettingsView: View {
                 Toggle("TODO 二次审核", isOn: $store.settings.todos.secondaryReview)
             }
 
-            Section("可靠性") {
-                LabeledContent("失败帧数") {
-                    HStack {
-                        Text("\(appState.failedAnalysisCount)").monospacedDigit()
-                        Spacer()
-                        Button("全部重试") {
-                            let n = FrameRepository.requeueFailed()
-                            AppLogger.tier1.info("requeued \(n) failed frames")
-                            Task { await Tier1Pipeline.shared.reconcileWorkers() }
-                        }
-                        .disabled(appState.failedAnalysisCount == 0)
-                    }
-                }
-                LabeledContent("待分析队列") {
-                    Text("\(appState.pendingAnalysisCount) 帧").monospacedDigit().foregroundStyle(.secondary)
-                }
-            }
-
             Section("计划任务") {
                 ScheduledTasksEditor()
             }
@@ -98,6 +93,24 @@ struct SettingsView: View {
                 ))
                 LabeledContent("当前状态") {
                     Text(launchStatusText).foregroundStyle(.secondary).font(.caption)
+                }
+            }
+
+            Section("可靠性") {
+                LabeledContent("失败帧数") {
+                    HStack {
+                        Text("\(appState.failedAnalysisCount)").monospacedDigit()
+                        Spacer()
+                        Button("全部重试") {
+                            let n = FrameRepository.requeueFailed()
+                            AppLogger.tier1.info("requeued \(n) failed frames")
+                            Task { await Tier1Pipeline.shared.reconcileWorkers() }
+                        }
+                        .disabled(appState.failedAnalysisCount == 0)
+                    }
+                }
+                LabeledContent("待分析队列") {
+                    Text("\(appState.pendingAnalysisCount) 帧").monospacedDigit().foregroundStyle(.secondary)
                 }
             }
 
@@ -137,30 +150,6 @@ struct SettingsView: View {
         .navigationTitle("设置")
     }
 
-    @ViewBuilder
-    private func providerEditor(for binding: Binding<ProviderSettings>) -> some View {
-        Picker("Provider", selection: binding.provider) {
-            ForEach(ProviderKind.allCases) { p in
-                Text(p.displayName).tag(p)
-            }
-        }
-        TextField("Endpoint", text: binding.endpoint)
-            .textFieldStyle(.roundedBorder)
-        TextField("模型", text: binding.model)
-            .textFieldStyle(.roundedBorder)
-        Stepper("超时：\(binding.wrappedValue.timeoutSec)s",
-                value: binding.timeoutSec, in: 10...600)
-        Stepper("并发：\(binding.wrappedValue.concurrency)",
-                value: binding.concurrency, in: 1...4)
-        LabeledContent("温度") {
-            HStack {
-                Slider(value: binding.temperature, in: 0...1, step: 0.05)
-                Text(String(format: "%.2f", binding.wrappedValue.temperature))
-                    .monospacedDigit().frame(width: 48, alignment: .trailing)
-            }
-        }
-    }
-
     private var launchStatusText: String {
         switch LaunchAgentService.status {
         case .notRegistered: return "未注册"
@@ -172,9 +161,26 @@ struct SettingsView: View {
     }
 
     private var tier2SupportsVision: Bool {
-        let m = store.settings.tier2.model.lowercased()
+        guard let p = store.tier2Profile() else { return false }
+        let m = p.model.lowercased()
         return ["vl", "vision", "opus", "sonnet", "gpt-4o", "gpt-4.1", "claude",
                 "qwen3", "qwen-3", "qwen2.5", "qwen2-5"]
             .contains(where: m.contains)
+    }
+}
+
+private struct ProfilePicker: View {
+    let title: String
+    @Binding var selection: UUID?
+    let profiles: [ModelProfile]
+    var placeholder: String = "请选择"
+
+    var body: some View {
+        Picker(title, selection: $selection) {
+            Text(placeholder).tag(UUID?.none)
+            ForEach(profiles) { p in
+                Text(p.name).tag(UUID?.some(p.id))
+            }
+        }
     }
 }

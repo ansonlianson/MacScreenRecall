@@ -36,7 +36,6 @@ struct LLMResponse {
 }
 
 protocol LLMProvider: Sendable {
-    var kind: ProviderKind { get }
     var name: String { get }
     var supportsVision: Bool { get }
     func complete(_ request: LLMRequest) async throws -> LLMResponse
@@ -63,12 +62,20 @@ enum LLMProviderError: Error, LocalizedError {
 }
 
 enum ProviderFactory {
-    static func make(settings: ProviderSettings, apiKey: String?) -> LLMProvider {
-        switch settings.provider {
-        case .local, .openai:
-            return OpenAIProvider(endpoint: settings.endpoint, apiKey: apiKey, kind: settings.provider)
-        case .anthropic:
-            return AnthropicProvider(endpoint: settings.endpoint, apiKey: apiKey ?? "")
+    static func make(profile: ModelProfile, apiKey: String?) -> LLMProvider {
+        switch profile.endpointKind {
+        case .openaiCompatible:
+            // 路由到 OpenAI 协议，本地/云端共用
+            let isLocal = profile.endpoint.contains("localhost") ||
+                          profile.endpoint.contains("127.0.0.1") ||
+                          profile.endpoint.contains("192.168.")
+            return OpenAIProvider(
+                endpoint: profile.endpoint,
+                apiKey: apiKey,
+                isLocal: isLocal
+            )
+        case .anthropicCompatible:
+            return AnthropicProvider(endpoint: profile.endpoint, apiKey: apiKey ?? "")
         }
     }
 }

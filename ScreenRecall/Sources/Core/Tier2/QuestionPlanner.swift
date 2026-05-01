@@ -24,10 +24,12 @@ enum QuestionPlanner {
         // 先做规则兜底，再尝试 LLM 增强
         let fallback = ruleBased(question: question, now: now)
 
-        let (settings, apiKey) = await MainActor.run {
-            (SettingsStore.shared.settings.tier2, KeychainStore.get(.tier2ApiKey))
+        let bundle = await MainActor.run { () -> (ModelProfile, String?)? in
+            guard let p = SettingsStore.shared.tier2Profile() else { return nil }
+            return (p, KeychainStore.get(forProfileId: p.id))
         }
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+        guard let (profile, apiKey) = bundle else { return fallback }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
         let system = """
         你是一个查询规划器。用户在询问自己 macOS 屏幕历史。
         当前时间：\(ISO8601DateFormatter().string(from: now))（毫秒时间戳 \(nowMs)）
@@ -52,7 +54,7 @@ enum QuestionPlanner {
             system: system,
             messages: [LLMMessage(role: .user, text: question)],
             images: [],
-            model: settings.model,
+            model: profile.model,
             temperature: 0.0,
             maxTokens: 256,
             timeout: 30,

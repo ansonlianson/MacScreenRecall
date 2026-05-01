@@ -93,18 +93,20 @@ enum DailyReportService {
         语言：中文，简洁有信息量；不要编造数字。
         """
 
-        let (settings, apiKey) = await MainActor.run {
-            (SettingsStore.shared.settings.tier2, KeychainStore.get(.tier2ApiKey))
+        let bundle = await MainActor.run { () -> (ModelProfile, String?)? in
+            guard let p = SettingsStore.shared.tier2Profile() else { return nil }
+            return (p, KeychainStore.get(forProfileId: p.id))
         }
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+        guard let (profile, apiKey) = bundle else { throw DailyReportError.providerFailed("未配置 Tier-2 模型") }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
         let req = LLMRequest(
             system: system,
             messages: [LLMMessage(role: .user, text: context)],
             images: [],
-            model: settings.model,
+            model: profile.model,
             temperature: 0.5,
-            maxTokens: max(2000, settings.maxTokens),
-            timeout: TimeInterval(settings.timeoutSec),
+            maxTokens: max(2000, profile.maxTokens),
+            timeout: TimeInterval(profile.timeoutSec),
             responseFormat: .text,
             disableThinking: false
         )
@@ -121,7 +123,7 @@ enum DailyReportService {
             id: nil, kind: "daily",
             rangeStart: startMs, rangeEnd: endMs,
             generatedAt: Int64(Date().timeIntervalSince1970 * 1000),
-            provider: provider.name, model: settings.model,
+            provider: provider.name, model: profile.model,
             markdown: resp.text,
             metaJson: jsonString([
                 "frames": rows.count,

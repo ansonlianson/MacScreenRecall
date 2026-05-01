@@ -5,26 +5,29 @@ enum KeychainStore {
     private static let service = "com.anson.ScreenRecall"
     private static let chain = Keychain(service: service)
 
-    enum Account: String {
-        case tier1ApiKey = "tier1.apiKey"
-        case tier2ApiKey = "tier2.apiKey"
+    private static func account(forProfileId id: UUID) -> String {
+        "model.\(id.uuidString)"
     }
 
-    static func get(_ account: Account) -> String? {
-        let v = (try? chain.get(account.rawValue)) ?? nil
+    static func get(forProfileId id: UUID) -> String? {
+        let v = (try? chain.get(account(forProfileId: id))) ?? nil
         guard let v, !v.isEmpty else { return nil }
         return v
     }
 
-    static func set(_ account: Account, _ value: String?) {
+    static func set(forProfileId id: UUID, value: String?) {
         do {
             if let value, !value.isEmpty {
-                try chain.set(value, key: account.rawValue)
+                try chain.set(value, key: account(forProfileId: id))
             } else {
-                try chain.remove(account.rawValue)
+                try chain.remove(account(forProfileId: id))
             }
         } catch {
             AppLogger.settings.error("keychain set failed: \(error.localizedDescription)")
         }
+    }
+
+    static func delete(forProfileId id: UUID) {
+        try? chain.remove(account(forProfileId: id))
     }
 }

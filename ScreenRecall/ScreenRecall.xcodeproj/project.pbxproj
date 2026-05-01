@@ -32,6 +32,7 @@
 		9A8CF2ED47A4D7DBFC576F1E /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E1E0DD85A8A48458E182E9 /* LLMProvider.swift */; };
 		A63B39244794CC4CE7AE071F /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 752CF479D906F5303FB00844 /* KeychainAccess */; };
 		A97C3A2482D9E44895E1573C /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 478EAEE53FFDAF80617752D1 /* GRDB */; };
+		AA273B0BCBF6BD497FF7931C /* ModelProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478A2D65CD47BD45AD30E09B /* ModelProfile.swift */; };
 		AC3680481D04C7CE8DF1215E /* ScheduledTasksEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4796CBB58B6E514473A6818 /* ScheduledTasksEditor.swift */; };
 		B388AD3ABDF6B82F35AD2B87 /* ReportsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27232A149BD6E4B4678009B8 /* ReportsRepository.swift */; };
 		BA7159E8CD75CEA858C007AE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75B1B6A69594B9F68AC31DB7 /* Models.swift */; };
@@ -46,6 +47,7 @@
 		EC8BF50ABFE9E804670E2971 /* OpenAIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6775D0CD5EB0F70988A4354E /* OpenAIProvider.swift */; };
 		ED41E21DE017D0C7A8B31681 /* Tier2Scheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A4EB63B95970D225CDC66E /* Tier2Scheduler.swift */; };
 		EDA8A7F4A163FC1A92CA01C0 /* ScreenRecallApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610399B637BDCD4ABC157823 /* ScreenRecallApp.swift */; };
+		EF53F94A4521676D2A4EB157 /* ModelProfilesEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EB1B02F838721530FF9CE42 /* ModelProfilesEditor.swift */; };
 		F19E6AB2A9ABB2D76FC2A896 /* ScheduledTasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4B88EDA1D3EEED5B3CE4DE /* ScheduledTasks.swift */; };
 		F7D263F18D0B58C75B1BB842 /* ScreenCapturer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CCD3CD360AC0DA34626CFF /* ScreenCapturer.swift */; };
 /* End PBXBuildFile section */
@@ -61,6 +63,7 @@
 		26E1E0DD85A8A48458E182E9 /* LLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProvider.swift; sourceTree = "<group>"; };
 		27232A149BD6E4B4678009B8 /* ReportsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsRepository.swift; sourceTree = "<group>"; };
 		28CCD3CD360AC0DA34626CFF /* ScreenCapturer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCapturer.swift; sourceTree = "<group>"; };
+		478A2D65CD47BD45AD30E09B /* ModelProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelProfile.swift; sourceTree = "<group>"; };
 		53409AEB5A2E70FA90DC58C9 /* Retriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Retriever.swift; sourceTree = "<group>"; };
 		58075E35D564FF46AAD1C5CD /* AnswerPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnswerPipeline.swift; sourceTree = "<group>"; };
 		610399B637BDCD4ABC157823 /* ScreenRecallApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecallApp.swift; sourceTree = "<group>"; };
@@ -76,6 +79,7 @@
 		71DA530D032B4D0724B421C0 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		74AA63018C4E07A56566F9D0 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		75B1B6A69594B9F68AC31DB7 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		7EB1B02F838721530FF9CE42 /* ModelProfilesEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelProfilesEditor.swift; sourceTree = "<group>"; };
 		8F29594DCF71A981C883E8FF /* ScreenRecall.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScreenRecall.entitlements; sourceTree = "<group>"; };
 		91F48744D5D1ACBA0F3652D3 /* ScreenRecall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenRecall.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9359AC8A98D719AA8A0F4508 /* AnthropicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicProvider.swift; sourceTree = "<group>"; };
@@ -123,6 +127,7 @@
 		06A85E8C1A9694B3E0E83E30 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				7EB1B02F838721530FF9CE42 /* ModelProfilesEditor.swift */,
 				D4796CBB58B6E514473A6818 /* ScheduledTasksEditor.swift */,
 				0588242F224E509A96A134EC /* SelfCheckPanel.swift */,
 				AE0D280FC62BA19C64CF28B0 /* SettingsView.swift */,
@@ -215,6 +220,7 @@
 			isa = PBXGroup;
 			children = (
 				E3AF6238490137EF663F0062 /* AppState.swift */,
+				478A2D65CD47BD45AD30E09B /* ModelProfile.swift */,
 				6B7B663010C84AFE89FD9905 /* SettingsStore.swift */,
 			);
 			path = Settings;
@@ -424,6 +430,8 @@
 				9A4A1BA0E2204751A8ED13BC /* LaunchAgentService.swift in Sources */,
 				46BC81963AC0FFFC2BDF8862 /* MainWindow.swift in Sources */,
 				8B1A0FB50D863D9F04D835CF /* MenuBarContent.swift in Sources */,
+				AA273B0BCBF6BD497FF7931C /* ModelProfile.swift in Sources */,
+				EF53F94A4521676D2A4EB157 /* ModelProfilesEditor.swift in Sources */,
 				BA7159E8CD75CEA858C007AE /* Models.swift in Sources */,
 				D1D013B3E6C8CAE1107F1B18 /* NotificationCenter.swift in Sources */,
 				EC8BF50ABFE9E804670E2971 /* OpenAIProvider.swift in Sources */,

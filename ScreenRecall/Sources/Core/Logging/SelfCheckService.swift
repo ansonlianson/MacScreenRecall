@@ -30,14 +30,18 @@ enum SelfCheckService {
         }
         r.framesDirBytes = directorySize(at: AppPaths.framesDir)
 
-        let (s, k1, k2) = await MainActor.run {
-            (SettingsStore.shared.settings, KeychainStore.get(.tier1ApiKey), KeychainStore.get(.tier2ApiKey))
+        let bundle = await MainActor.run { () -> (ModelProfile?, String?, ModelProfile?, String?) in
+            let p1 = SettingsStore.shared.tier1Profile()
+            let p2 = SettingsStore.shared.tier2Profile()
+            let k1 = p1.flatMap { KeychainStore.get(forProfileId: $0.id) }
+            let k2 = p2.flatMap { KeychainStore.get(forProfileId: $0.id) }
+            return (p1, k1, p2, k2)
         }
-        r.tier1Provider = s.tier1.provider.displayName
-        r.tier2Provider = s.tier2.provider.displayName
+        r.tier1Provider = bundle.0?.name ?? "(未配置)"
+        r.tier2Provider = bundle.2?.name ?? "(未配置)"
 
-        async let p1 = ping(settings: s.tier1, apiKey: k1)
-        async let p2 = ping(settings: s.tier2, apiKey: k2)
+        async let p1 = pingProfile(profile: bundle.0, apiKey: bundle.1)
+        async let p2 = pingProfile(profile: bundle.2, apiKey: bundle.3)
         let (a, b) = await (p1, p2)
         r.tier1Reachable = a.0; r.tier1Latency = a.1
         r.tier2Reachable = b.0; r.tier2Latency = b.1
@@ -49,14 +53,15 @@ enum SelfCheckService {
         return r
     }
 
-    private static func ping(settings: ProviderSettings, apiKey: String?) async -> (Bool, Int?) {
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+    private static func pingProfile(profile: ModelProfile?, apiKey: String?) async -> (Bool, Int?) {
+        guard let profile else { return (false, nil) }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
         let start = Date()
         let req = LLMRequest(
             system: nil,
             messages: [LLMMessage(role: .user, text: "ok?")],
             images: [],
-            model: settings.model,
+            model: profile.model,
             temperature: 0.0,
             maxTokens: 32,
             timeout: 15,

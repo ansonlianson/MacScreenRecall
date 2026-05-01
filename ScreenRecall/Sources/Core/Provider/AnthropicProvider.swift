@@ -1,7 +1,6 @@
 import Foundation
 
 struct AnthropicProvider: LLMProvider {
-    var kind: ProviderKind { .anthropic }
     var name: String { "anthropic" }
     var supportsVision: Bool { true }
 

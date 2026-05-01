@@ -1,28 +1,6 @@
 import Foundation
 import Observation
 
-enum ProviderKind: String, Codable, CaseIterable, Identifiable {
-    case local, openai, anthropic
-    var id: String { rawValue }
-    var displayName: String {
-        switch self {
-        case .local: return "Local (OpenAI 兼容)"
-        case .openai: return "OpenAI 兼容"
-        case .anthropic: return "Anthropic 兼容"
-        }
-    }
-}
-
-struct ProviderSettings: Codable, Equatable {
-    var provider: ProviderKind
-    var endpoint: String
-    var model: String
-    var timeoutSec: Int
-    var concurrency: Int
-    var temperature: Double
-    var maxTokens: Int
-}
-
 struct CaptureSettings: Codable, Equatable {
     var intervalSec: Int = 30
     var jpegQuality: Int = 75
@@ -74,69 +52,101 @@ struct UISettings: Codable, Equatable {
 
 struct AppSettings: Codable, Equatable {
     var capture = CaptureSettings()
-    var tier1 = ProviderSettings(
-        provider: .openai,
-        endpoint: "https://coding.dashscope.aliyuncs.com/v1",
-        model: "qwen3.6-plus",
-        timeoutSec: 90,
-        concurrency: 1,
-        temperature: 0.2,
-        maxTokens: 2048
-    )
-    var tier2 = ProviderSettings(
-        provider: .anthropic,
-        endpoint: "https://coding.dashscope.aliyuncs.com/apps/anthropic",
-        model: "qwen3.6-plus",
-        timeoutSec: 180,
-        concurrency: 1,
-        temperature: 0.3,
-        maxTokens: 4096
-    )
+    var profiles: [ModelProfile] = []
+    var tier1ProfileId: UUID? = nil
+    var tier2ProfileId: UUID? = nil
+    var embeddingProfileId: UUID? = nil   // nil → 用 AppleNL 兜底
+    var tier1Concurrency: Int = 1         // 取代旧 ProviderSettings.concurrency
     var reports = ReportSettings()
     var todos = TodoSettings()
     var retention = RetentionSettings()
     var privacy = PrivacySettings()
     var ui = UISettings()
+
+    static func makeDefault() -> AppSettings {
+        var s = AppSettings()
+        let openai = ModelProfile(
+            name: "DashScope · qwen3.6-plus (chat, OpenAI 兼容)",
+            endpointKind: .openaiCompatible,
+            endpoint: "https://coding.dashscope.aliyuncs.com/v1",
+            model: "qwen3.6-plus",
+            kind: .chat,
+            maxTokens: 2048,
+            timeoutSec: 90
+        )
+        let anthropic = ModelProfile(
+            name: "DashScope · qwen3.6-plus (chat, Anthropic 兼容)",
+            endpointKind: .anthropicCompatible,
+            endpoint: "https://coding.dashscope.aliyuncs.com/apps/anthropic",
+            model: "qwen3.6-plus",
+            kind: .chat,
+            maxTokens: 4096,
+            timeoutSec: 180
+        )
+        s.profiles = [openai, anthropic]
+        s.tier1ProfileId = openai.id
+        s.tier2ProfileId = anthropic.id
+        return s
+    }
 }
 
 @Observable
 final class SettingsStore {
     static let shared = SettingsStore()
 
-    private let storageKey = "recall.settings.v2"
+    private let storageKey = "recall.settings.v3"
     private let defaults = UserDefaults.standard
     private var debounceTask: Task<Void, Never>?
 
     var settings: AppSettings {
         didSet { scheduleSave() }
     }
-    var tier1ApiKey: String = "" {
-        didSet { KeychainStore.set(.tier1ApiKey, tier1ApiKey) }
-    }
-    var tier2ApiKey: String = "" {
-        didSet { KeychainStore.set(.tier2ApiKey, tier2ApiKey) }
-    }
 
     private init() {
-        if let data = UserDefaults.standard.data(forKey: "recall.settings.v2"),
+        if let data = UserDefaults.standard.data(forKey: "recall.settings.v3"),
            let decoded = try? JSONDecoder().decode(AppSettings.self, from: data) {
             self.settings = decoded
         } else {
-            self.settings = AppSettings()
+            self.settings = AppSettings.makeDefault()
         }
-        self.tier1ApiKey = KeychainStore.get(.tier1ApiKey) ?? ""
-        self.tier2ApiKey = KeychainStore.get(.tier2ApiKey) ?? ""
+        seedDevKeysIfNeeded()
+    }
 
-        // 开发期便利：若 Keychain 为空且默认 endpoint 是 dashscope，预填一次开发 key
+    /// 开发期便利：若 dashscope profile 还没 key，预填一次开发 key。
+    private func seedDevKeysIfNeeded() {
         let devKey = "sk-sp-0ce1aa0951844541af3452efc6d96649"
-        if tier1ApiKey.isEmpty,
-           settings.tier1.endpoint.contains("dashscope") {
-            tier1ApiKey = devKey
+        for p in settings.profiles where p.endpoint.contains("dashscope") {
+            if KeychainStore.get(forProfileId: p.id) == nil {
+                KeychainStore.set(forProfileId: p.id, value: devKey)
+            }
         }
-        if tier2ApiKey.isEmpty,
-           settings.tier2.endpoint.contains("dashscope") {
-            tier2ApiKey = devKey
+    }
+
+    // MARK: - profile helpers
+
+    func profile(id: UUID?) -> ModelProfile? {
+        guard let id else { return nil }
+        return settings.profiles.first(where: { $0.id == id })
+    }
+    func tier1Profile() -> ModelProfile? { profile(id: settings.tier1ProfileId) }
+    func tier2Profile() -> ModelProfile? { profile(id: settings.tier2ProfileId) }
+    func embeddingProfile() -> ModelProfile? { profile(id: settings.embeddingProfileId) }
+
+    func upsertProfile(_ p: ModelProfile) {
+        if let i = settings.profiles.firstIndex(where: { $0.id == p.id }) {
+            settings.profiles[i] = p
+        } else {
+            settings.profiles.append(p)
         }
+    }
+
+    /// 删除 profile：同步清 Keychain；并把指向它的 tier1/tier2/embedding 置 nil
+    func deleteProfile(id: UUID) {
+        settings.profiles.removeAll(where: { $0.id == id })
+        KeychainStore.delete(forProfileId: id)
+        if settings.tier1ProfileId == id { settings.tier1ProfileId = nil }
+        if settings.tier2ProfileId == id { settings.tier2ProfileId = nil }
+        if settings.embeddingProfileId == id { settings.embeddingProfileId = nil }
     }
 
     private func scheduleSave() {
@@ -150,6 +160,7 @@ final class SettingsStore {
     private func persist() {
         guard let data = try? JSONEncoder().encode(settings) else { return }
         defaults.set(data, forKey: storageKey)
-        AppLogger.settings.info("settings persisted")
+        let n = self.settings.profiles.count
+        AppLogger.settings.info("settings persisted (profiles=\(n))")
     }
 }

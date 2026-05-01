@@ -21,13 +21,22 @@ enum AnswerPipeline {
         let hits = retrieved.hits
         let diag = retrieved.diag
 
-        let (settings, apiKey) = await MainActor.run {
-            (SettingsStore.shared.settings.tier2, KeychainStore.get(.tier2ApiKey))
+        let bundle = await MainActor.run { () -> (ModelProfile, String?)? in
+            guard let p = SettingsStore.shared.tier2Profile() else { return nil }
+            return (p, KeychainStore.get(forProfileId: p.id))
         }
-        let provider = ProviderFactory.make(settings: settings, apiKey: apiKey)
+        guard let (profile, apiKey) = bundle else {
+            return AskResult(
+                answer: "未配置 Tier-2 模型，请到设置 → 模型管理添加并指定为 Tier-2",
+                plan: plan, hits: hits, usedVision: false, degraded: false,
+                provider: "(none)", model: "(none)",
+                latencyMs: 0, tokensIn: nil, tokensOut: nil, diagnostics: diag
+            )
+        }
+        let provider = ProviderFactory.make(profile: profile, apiKey: apiKey)
         let supportsVision = provider.supportsVision
         // 启发：模型名含 vl/vision/opus/sonnet/gpt-4o/claude → 视为支持视觉
-        let modelLower = settings.model.lowercased()
+        let modelLower = profile.model.lowercased()
         // qwen3.6+ / qwen2.5-vl / Claude 4.x sonnet+ / GPT-4o 都支持视觉
         let modelLooksVisual = ["vl", "vision", "opus", "sonnet", "gpt-4o", "gpt-4.1", "claude",
                                 "qwen3", "qwen-3", "qwen2.5", "qwen2-5"]
@@ -40,7 +49,7 @@ enum AnswerPipeline {
             return AskResult(
                 answer: "未在指定时间窗内找到任何 done 帧。可能这段时间应用未运行或采集被暂停。",
                 plan: plan, hits: [], usedVision: false, degraded: false,
-                provider: provider.name, model: settings.model,
+                provider: provider.name, model: profile.model,
                 latencyMs: 0, tokensIn: nil, tokensOut: nil,
                 diagnostics: diag
             )
@@ -80,10 +89,10 @@ enum AnswerPipeline {
             system: system,
             messages: [LLMMessage(role: .user, text: userMsg)],
             images: topImages,
-            model: settings.model,
-            temperature: settings.temperature,
-            maxTokens: max(800, settings.maxTokens),
-            timeout: TimeInterval(settings.timeoutSec),
+            model: profile.model,
+            temperature: 0.4,
+            maxTokens: max(800, profile.maxTokens),
+            timeout: TimeInterval(profile.timeoutSec),
             responseFormat: .text,
             disableThinking: false
         )
@@ -95,7 +104,7 @@ enum AnswerPipeline {
                 plan: plan, hits: hits,
                 usedVision: useVision,
                 degraded: wantVision && !canVision,
-                provider: provider.name, model: settings.model,
+                provider: provider.name, model: profile.model,
                 latencyMs: resp.latencyMs, tokensIn: resp.tokensIn, tokensOut: resp.tokensOut,
                 diagnostics: diag
             )
@@ -104,7 +113,7 @@ enum AnswerPipeline {
                 answer: "Tier-2 调用失败：\(error.localizedDescription)",
                 plan: plan, hits: hits,
                 usedVision: false, degraded: wantVision && !canVision,
-                provider: provider.name, model: settings.model,
+                provider: provider.name, model: profile.model,
                 latencyMs: 0, tokensIn: nil, tokensOut: nil,
                 diagnostics: diag
             )

@@ -19,7 +19,7 @@ struct MenuBarContent: View {
 
             statRow("今日帧数", value: "\(appState.todayFrameCount)")
             statRow("待分析队列", value: "\(appState.pendingAnalysisCount)")
-            statRow("Tier-1", value: settings.settings.tier1.provider.displayName)
+            statRow("Tier-1", value: settings.tier1Profile()?.name ?? "未配置")
             statRow("最近分析",
                     value: appState.lastAnalyzedAt.map { Self.timeFormatter.string(from: $0) } ?? "—")
             statRow("权限",

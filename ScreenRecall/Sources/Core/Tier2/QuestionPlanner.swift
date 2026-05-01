@@ -118,16 +118,8 @@ enum QuestionPlanner {
     }
 
     private static func extractKeywords(_ q: String) -> [String] {
-        // 极简：去掉常见疑问词、空格切分
-        let stopwords: Set<String> = ["我", "在", "了", "的", "什么", "干嘛", "做了",
-                                       "请", "帮", "查", "下", "怎么", "如何",
-                                       "今天", "昨天", "刚才", "最近", "过去"]
-        let cleaned = q.replacingOccurrences(of: "[？?。，,.！!]", with: " ", options: .regularExpression)
-        return cleaned.split(whereSeparator: { $0.isWhitespace })
-            .map(String.init)
-            .filter { !$0.isEmpty && !stopwords.contains($0) && $0.count >= 2 }
-            .prefix(6)
-            .map { String($0) }
+        // 用 CJKTokenizer 做中英分词；CJKTokenizer 内部已含基础停用词过滤
+        return Array(CJKTokenizer.tokenize(q, minLength: 2).prefix(6))
     }
 
     private static func firstMatch(in text: String, regex pattern: String) -> String? {

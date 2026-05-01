@@ -11,12 +11,15 @@ struct AskResult {
     let latencyMs: Int
     let tokensIn: Int?
     let tokensOut: Int?
+    let diagnostics: RetrieveDiagnostics
 }
 
 enum AnswerPipeline {
     static func ask(_ question: String, topK: Int = 3) async -> AskResult {
         let plan = await QuestionPlanner.plan(question: question)
-        let hits = (try? Retriever.retrieve(plan: plan, limit: 20)) ?? []
+        let retrieved = (try? Retriever.retrieve(plan: plan, limit: 20)) ?? (hits: [], diag: RetrieveDiagnostics())
+        let hits = retrieved.hits
+        let diag = retrieved.diag
 
         let (settings, apiKey) = await MainActor.run {
             (SettingsStore.shared.settings.tier2, KeychainStore.get(.tier2ApiKey))
@@ -35,10 +38,11 @@ enum AnswerPipeline {
 
         if hits.isEmpty {
             return AskResult(
-                answer: "未在指定时间窗内找到相关记录。",
+                answer: "未在指定时间窗内找到任何 done 帧。可能这段时间应用未运行或采集被暂停。",
                 plan: plan, hits: [], usedVision: false, degraded: false,
                 provider: provider.name, model: settings.model,
-                latencyMs: 0, tokensIn: nil, tokensOut: nil
+                latencyMs: 0, tokensIn: nil, tokensOut: nil,
+                diagnostics: diag
             )
         }
 
@@ -92,7 +96,8 @@ enum AnswerPipeline {
                 usedVision: useVision,
                 degraded: wantVision && !canVision,
                 provider: provider.name, model: settings.model,
-                latencyMs: resp.latencyMs, tokensIn: resp.tokensIn, tokensOut: resp.tokensOut
+                latencyMs: resp.latencyMs, tokensIn: resp.tokensIn, tokensOut: resp.tokensOut,
+                diagnostics: diag
             )
         } catch {
             return AskResult(
@@ -100,7 +105,8 @@ enum AnswerPipeline {
                 plan: plan, hits: hits,
                 usedVision: false, degraded: wantVision && !canVision,
                 provider: provider.name, model: settings.model,
-                latencyMs: 0, tokensIn: nil, tokensOut: nil
+                latencyMs: 0, tokensIn: nil, tokensOut: nil,
+                diagnostics: diag
             )
         }
     }

@@ -113,11 +113,19 @@ private struct AnswerCard: View {
                     }
                 }
             }
-            HStack {
-                Text("时间窗：\(formatTime(result.plan.rangeStartMs)) → \(formatTime(result.plan.rangeEndMs))")
-                Spacer()
-                if !result.plan.keywords.isEmpty {
-                    Text("关键字：\(result.plan.keywords.joined(separator: ", "))")
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("时间窗：\(formatTime(result.plan.rangeStartMs)) → \(formatTime(result.plan.rangeEndMs))")
+                    Spacer()
+                    if !result.diagnostics.keywords.isEmpty {
+                        Text("分词：\(result.diagnostics.keywords.joined(separator: " · "))")
+                    }
+                }
+                HStack {
+                    Text("FTS 表达式：\(result.diagnostics.ftsExpression.isEmpty ? "(空)" : result.diagnostics.ftsExpression)")
+                        .lineLimit(1)
+                    Spacer()
+                    Text("命中：\(result.hits.count) 帧" + (result.diagnostics.fellBackToWindow ? "（时间窗兜底）" : ""))
                 }
             }
             .font(.caption).foregroundStyle(.secondary)

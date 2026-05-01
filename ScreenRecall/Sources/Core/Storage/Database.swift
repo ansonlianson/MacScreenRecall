@@ -184,6 +184,46 @@ enum Schema {
             """)
         }
 
+        m.registerMigration("v4.fts_trigram") { db in
+            // unicode61 对中文整段不分词 → MATCH '工作' 命中失败。
+            // 改用 SQLite 官方 trigram 分词器（3.34+），按 3-codepoint 子串索引，
+            // 中英文都能子串匹配；查询 ≥3 字符，<3 字符走 LIKE fallback。
+            try db.execute(sql: "DROP TRIGGER IF EXISTS analyses_ai;")
+            try db.execute(sql: "DROP TRIGGER IF EXISTS analyses_au;")
+            try db.execute(sql: "DROP TRIGGER IF EXISTS analyses_ad;")
+            try db.execute(sql: "DROP TABLE IF EXISTS analyses_fts;")
+            try db.execute(sql: """
+                CREATE VIRTUAL TABLE analyses_fts USING fts5(
+                  summary, key_text, tags_json, app, window_title, url,
+                  content='analyses', content_rowid='frame_id', tokenize='trigram'
+                );
+            """)
+            try db.execute(sql: """
+                CREATE TRIGGER analyses_ai AFTER INSERT ON analyses BEGIN
+                  INSERT INTO analyses_fts(rowid, summary, key_text, tags_json, app, window_title, url)
+                  VALUES (new.frame_id, new.summary, new.key_text, new.tags_json, new.app, new.window_title, new.url);
+                END;
+            """)
+            try db.execute(sql: """
+                CREATE TRIGGER analyses_ad AFTER DELETE ON analyses BEGIN
+                  INSERT INTO analyses_fts(analyses_fts, rowid, summary, key_text, tags_json, app, window_title, url)
+                  VALUES ('delete', old.frame_id, old.summary, old.key_text, old.tags_json, old.app, old.window_title, old.url);
+                END;
+            """)
+            try db.execute(sql: """
+                CREATE TRIGGER analyses_au AFTER UPDATE ON analyses BEGIN
+                  INSERT INTO analyses_fts(analyses_fts, rowid, summary, key_text, tags_json, app, window_title, url)
+                  VALUES ('delete', old.frame_id, old.summary, old.key_text, old.tags_json, old.app, old.window_title, old.url);
+                  INSERT INTO analyses_fts(rowid, summary, key_text, tags_json, app, window_title, url)
+                  VALUES (new.frame_id, new.summary, new.key_text, new.tags_json, new.app, new.window_title, new.url);
+                END;
+            """)
+            try db.execute(sql: """
+                INSERT INTO analyses_fts(rowid, summary, key_text, tags_json, app, window_title, url)
+                SELECT frame_id, summary, key_text, tags_json, app, window_title, url FROM analyses;
+            """)
+        }
+
         return m
     }
 }

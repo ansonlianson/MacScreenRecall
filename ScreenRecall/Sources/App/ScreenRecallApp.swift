@@ -55,6 +55,12 @@ struct ScreenRecallApp: App {
                 DebugFile.write("ENV daily report failed: \(error.localizedDescription)")
             }
         }
+        if let q = env["SR_TRIGGER_ASK"], !q.isEmpty {
+            DebugFile.write("ENV trigger: ask q=\(q)")
+            let r = await AnswerPipeline.ask(q)
+            DebugFile.write("ENV ask diag: keywords=\(r.diagnostics.keywords) ftsExpr=\(r.diagnostics.ftsExpression.prefix(120)) hits=\(r.hits.count) range=\(r.plan.rangeStartMs)->\(r.plan.rangeEndMs)")
+            DebugFile.write("ENV ask answer (first 400 chars): \(r.answer.prefix(400))")
+        }
         if env["SR_TRIGGER_SELFCHECK"] == "1" {
             DebugFile.write("ENV trigger: self-check")
             let r = await SelfCheckService.run()

@@ -1,0 +1,71 @@
+name: ScreenRecall
+options:
+  bundleIdPrefix: com.anson
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hans
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+    DEAD_CODE_STRIPPING: YES
+    SWIFT_STRICT_CONCURRENCY: minimal
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: 6.29.0
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess
+    from: 4.2.2
+targets:
+  ScreenRecall:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+      - path: Resources
+        excludes:
+          - Prompts/**
+      - path: Resources/Prompts
+        type: folder
+        buildPhase: resources
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleName: ScreenRecall
+        CFBundleDisplayName: Screen Recall
+        CFBundleIdentifier: com.anson.ScreenRecall
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "26.0"
+        LSUIElement: true
+        NSHumanReadableCopyright: "© 2026 Anson"
+        NSScreenCaptureUsageDescription: "Screen Recall 需要屏幕录制权限以定时采集画面用于本地分析与检索。"
+        NSCameraUsageDescription: "用于偶发画面分析（默认不使用）。"
+        NSAppleEventsUsageDescription: "用于读取前台应用元信息以辅助分析。"
+        NSUserNotificationAlertStyle: alert
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: Resources/ScreenRecall.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-write: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.anson.ScreenRecall
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: YES
+        COMBINE_HIDPI_IMAGES: YES
+    dependencies:
+      - package: GRDB
+        product: GRDB
+      - package: KeychainAccess

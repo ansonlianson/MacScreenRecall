@@ -1,0 +1,43 @@
+# Build outputs
+build/
+DerivedData/
+.build/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+# Keep Package.resolved for reproducible builds
+# Package.resolved
+
+# macOS
+.DS_Store
+*~
+*.swp
+
+# Xcode userdata
+*.xcuserstate
+*.xcuserdatad/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# CocoaPods (not used here)
+Pods/
+
+# Carthage (not used here)
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Debug logs
+*.log
+/tmp/

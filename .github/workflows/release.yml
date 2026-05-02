@@ -1,0 +1,165 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（不带前导 v 的 0.x.y 也行；不输入则用当前 HEAD 的最近 tag）'
+        required: false
+
+permissions:
+  contents: write   # 创建 release 需要
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+            [[ "$TAG" == v* ]] || TAG="v${TAG}"
+          else
+            TAG=$(git describe --tags --abbrev=0)
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building tag=${TAG} version=${VERSION}"
+
+      - name: Use latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          sw_vers
+          which xcodegen || true
+
+      - name: Install build tools
+        run: |
+          brew update >/dev/null
+          brew install xcodegen create-dmg
+
+      - name: Generate Xcode project
+        working-directory: ScreenRecall
+        run: xcodegen generate
+
+      - name: Build Release (ad-hoc signed)
+        working-directory: ScreenRecall
+        run: |
+          xcodebuild \
+            -project ScreenRecall.xcodeproj \
+            -scheme ScreenRecall \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath ./build-release \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            build | xcpretty || exit 1
+          codesign --verify --verbose ./build-release/Build/Products/Release/ScreenRecall.app
+
+      - name: Stage DMG contents
+        run: |
+          mkdir -p dist/staging
+          cp -R ScreenRecall/build-release/Build/Products/Release/ScreenRecall.app dist/staging/
+          cp .github/dmg-readme.txt dist/staging/请先读我.txt
+          ls -la dist/staging
+
+      - name: Make DMG
+        id: dmg
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          DMG="ScreenRecall-${VERSION}-arm64.dmg"
+          create-dmg \
+            --volname "Screen Recall ${VERSION}" \
+            --window-pos 200 120 \
+            --window-size 640 400 \
+            --icon-size 96 \
+            --icon "ScreenRecall.app" 160 200 \
+            --app-drop-link 480 200 \
+            --icon "请先读我.txt" 320 320 \
+            --hide-extension "ScreenRecall.app" \
+            --no-internet-enable \
+            "dist/${DMG}" \
+            "dist/staging/" || exit 1
+          SHA=$(shasum -a 256 "dist/${DMG}" | awk '{print $1}')
+          SIZE=$(du -h "dist/${DMG}" | awk '{print $1}')
+          echo "dmg=dist/${DMG}"   >> "$GITHUB_OUTPUT"
+          echo "name=${DMG}"        >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}"         >> "$GITHUB_OUTPUT"
+          echo "size=${SIZE}"       >> "$GITHUB_OUTPUT"
+          echo "## DMG 产物" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 文件：\`${DMG}\` (${SIZE})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA-256：\`${SHA}\`"        >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify DMG mounts and app signature
+        run: |
+          DMG="${{ steps.dmg.outputs.dmg }}"
+          MOUNT=$(hdiutil attach "$DMG" -nobrowse -plist | plutil -extract "system-entities".0."mount-point" raw -)
+          echo "mount: $MOUNT"
+          ls -la "$MOUNT"
+          codesign --verify --verbose "$MOUNT/ScreenRecall.app"
+          hdiutil detach "$MOUNT"
+
+      - name: Create / update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          DMG="${{ steps.dmg.outputs.dmg }}"
+          NAME="${{ steps.dmg.outputs.name }}"
+          SHA="${{ steps.dmg.outputs.sha }}"
+
+          NOTES=$(cat <<EOF
+          自动构建于 GitHub Actions（runner: macos-latest，ad-hoc 签名）。
+
+          ## 📦 安装
+          1. 下载下方 \`${NAME}\`
+          2. 拖到 Applications
+          3. 首次打开会被 Gatekeeper 拦，二选一：
+             - 在「访达」里 Control-点击 → 「打开」 → 弹窗里再点「打开」
+             - 终端运行：\`xattr -dr com.apple.quarantine /Applications/ScreenRecall.app\`
+          4. 系统设置 → 隐私与安全性 → 屏幕录制 → 把 ScreenRecall 打开
+          5. 进 app → 设置 → 模型管理 → 编辑 default profile 填入你自己的 API Key
+
+          详见 [README](https://github.com/${{ github.repository }}/blob/main/README.md)
+          与 DMG 内 \`请先读我.txt\`。
+
+          ## 🖥 系统要求
+          - macOS 26.0+
+          - Apple Silicon
+
+          ## 🔐 SHA-256
+          \`\`\`
+          ${SHA}
+          \`\`\`
+          EOF
+          )
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG exists; uploading asset (overwrite)"
+            gh release upload "$TAG" "${DMG}#ScreenRecall (Apple Silicon)" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            echo "creating release $TAG"
+            gh release create "$TAG" \
+              "${DMG}#ScreenRecall (Apple Silicon)" \
+              --title "$TAG" \
+              --notes "$NOTES" \
+              --repo "$GITHUB_REPOSITORY"
+          fi

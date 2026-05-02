@@ -8,6 +8,7 @@
   ![macOS](https://img.shields.io/badge/macOS-26.0+-000000?logo=apple)
   ![Swift](https://img.shields.io/badge/Swift-5.10-orange?logo=swift)
   ![License](https://img.shields.io/badge/license-MIT-blue)
+  [![Release](https://github.com/ansonlianson/MacScreenRecall/actions/workflows/release.yml/badge.svg)](https://github.com/ansonlianson/MacScreenRecall/actions/workflows/release.yml)
 
   [下载 DMG](https://github.com/ansonlianson/MacScreenRecall/releases/latest) ·
   [需求文档](screen-recall-requirements.md)

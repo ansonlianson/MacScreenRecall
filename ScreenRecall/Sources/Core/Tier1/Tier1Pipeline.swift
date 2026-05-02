@@ -41,25 +41,29 @@ actor Tier1Pipeline {
     func ingest(frame: CapturedFrame) async {
         let now = Date()
         let ms = Int64(now.timeIntervalSince1970 * 1000)
+
+        // 1. 先做 dedup 判定（用 in-memory anchor phash），避免无谓写盘 / 入库 / 分析。
+        //    锁屏动态壁纸场景：壁纸虽在动，pHash 距离通常 ≤ threshold，整段都会被 drop。
+        let dedupThreshold = await MainActor.run { SettingsStore.shared.settings.capture.dedupPHashDistance }
+        if let anchor = lastPHashByDisplay[frame.displayId],
+           let dist = PHashUtil.hammingHex(anchor, frame.phash),
+           dist <= dedupThreshold {
+            // anchor 不更新 → 防止 stable 状态下慢慢漂移导致漏检；
+            // 真正发生变化的帧（dist > threshold）才会替换 anchor。
+            AppLogger.tier1.debug("dedup drop \(frame.displayId) dist=\(dist)")
+            return
+        }
+
+        // 2. 实际有变化：写盘 + 入库
         guard let url = saveImageToDisk(jpeg: frame.jpegData, capturedAt: now, displayId: frame.displayId) else {
             AppLogger.tier1.error("save image failed")
             return
         }
 
-        // 背压：积压超过阈值时仍入库 pending（让 worker 慢慢消化），不丢图，不阻塞采集。
         let backlog = (try? FrameRepository.backlogCount()) ?? 0
         let maxBacklog = await MainActor.run { SettingsStore.shared.settings.capture.maxBacklog }
         if backlog > maxBacklog {
-            DebugFile.write("Tier1 backpressure: backlog=\(backlog) > \(maxBacklog), still inserting pending")
-        }
-
-        var dedupOf: Int64? = nil
-        let dedupThreshold = await MainActor.run { SettingsStore.shared.settings.capture.dedupPHashDistance }
-        if let prev = lastPHashByDisplay[frame.displayId],
-           let prevId = lastFrameIdByDisplay[frame.displayId],
-           let dist = PHashUtil.hammingHex(prev, frame.phash),
-           dist <= dedupThreshold {
-            dedupOf = prevId
+            DebugFile.write("Tier1 backpressure: backlog=\(backlog) > \(maxBacklog)")
         }
 
         var row = FrameRow(
@@ -67,24 +71,22 @@ actor Tier1Pipeline {
             displayId: frame.displayId, displayLabel: frame.displayLabel,
             imagePath: url.path, imagePhash: frame.phash,
             width: frame.pixelWidth, height: frame.pixelHeight, bytes: frame.jpegData.count,
-            dedupOfId: dedupOf,
-            analysisStatus: dedupOf != nil ? FrameAnalysisStatus.skipped.rawValue : FrameAnalysisStatus.pending.rawValue
+            dedupOfId: nil,
+            analysisStatus: FrameAnalysisStatus.pending.rawValue
         )
         do {
             try FrameRepository.insert(&row)
         } catch {
             AppLogger.tier1.error("frame insert failed: \(error.localizedDescription)")
+            try? FileManager.default.removeItem(at: url)
             return
         }
         guard let frameId = row.id else { return }
 
+        // 3. 把当前 phash 设为新的 anchor
         lastPHashByDisplay[frame.displayId] = frame.phash
         lastFrameIdByDisplay[frame.displayId] = frameId
-
         await refreshCounters()
-        if dedupOf != nil {
-            AppLogger.tier1.info("frame \(frameId) deduped of \(dedupOf!)")
-        }
     }
 
     // MARK: - workers

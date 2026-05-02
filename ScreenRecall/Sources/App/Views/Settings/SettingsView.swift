@@ -112,6 +112,7 @@ struct SettingsView: View {
                 LabeledContent("待分析队列") {
                     Text("\(appState.pendingAnalysisCount) 帧").monospacedDigit().foregroundStyle(.secondary)
                 }
+                CleanupButton()
             }
 
             Section("自检") {
@@ -166,6 +167,40 @@ struct SettingsView: View {
         return ["vl", "vision", "opus", "sonnet", "gpt-4o", "gpt-4.1", "claude",
                 "qwen3", "qwen-3", "qwen2.5", "qwen2-5"]
             .contains(where: m.contains)
+    }
+}
+
+private struct CleanupButton: View {
+    @State private var purging = false
+    @State private var lastResult: String?
+
+    var body: some View {
+        LabeledContent("清理历史 skipped 帧") {
+            HStack {
+                if let r = lastResult {
+                    Text(r).font(.caption).foregroundStyle(.green)
+                }
+                Spacer()
+                Button {
+                    purging = true
+                    Task {
+                        let (rows, bytes) = await CleanupService.purgeLegacySkippedFrames()
+                        await MainActor.run {
+                            purging = false
+                            lastResult = "已清理 \(rows) 行 / \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
+                        }
+                    }
+                } label: {
+                    if purging {
+                        ProgressView().scaleEffect(0.6)
+                    } else {
+                        Image(systemName: "trash")
+                    }
+                    Text(purging ? "清理中…" : "立即清理")
+                }
+                .disabled(purging)
+            }
+        }
     }
 }
 

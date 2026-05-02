@@ -19,6 +19,13 @@ struct ScreenRecallApp: App {
             await Tier1Pipeline.shared.startWorkers()
             DebugFile.write("App init Task: starting EmbeddingService")
             await EmbeddingService.shared.start()
+            // 后台清理 v0.2.0 之前 dedup 留下的 skipped 帧（一次性，不阻塞 UI）
+            Task.detached(priority: .background) {
+                let (rows, bytes) = await CleanupService.purgeLegacySkippedFrames()
+                if rows > 0 {
+                    DebugFile.write("legacy skipped purged: rows=\(rows) freed=\(bytes / 1024 / 1024) MB")
+                }
+            }
             DebugFile.write("App init Task: starting CaptureScheduler")
             CaptureScheduler.shared.start()
             DebugFile.write("App init Task: starting Tier2Scheduler")

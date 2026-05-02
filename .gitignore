@@ -1,7 +1,10 @@
 # Build outputs
 build/
+build-release/
+dist/
 DerivedData/
 .build/
+SourcePackages/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/

@@ -2,24 +2,25 @@ import SwiftUI
 import AppKit
 import MarkdownUI
 
-/// 「回溯」Tab —— 合并旧的「时间线」与「检索」。
-/// 顶部搜索/提问；下方一条时间线展示当日所有 done 帧；
-/// - 输入关键字 → 搜索结果
-/// - 点提问 → 答案卡 + 引用帧高亮 + 时间线滚到对应位置
+/// 「回溯」Tab —— Rewind 风格：
+///   主区域：当前选中帧的大图 + meta + 答案叠层
+///   底部：水平时间轴 strip（缩略图带），← → 导航，命中帧高亮
+///   顶部：搜索框 / 提问 + 日期选择
 struct RecallView: View {
     @Environment(AppState.self) private var appState
 
     @State private var query: String = ""
     @State private var date: Date = Date()
     @State private var items: [TimelineItem] = []
+    @State private var selectedId: Int64?
     @State private var loading = false
     @State private var lastError: String?
 
     @State private var askResult: AskResult?
     @State private var asking = false
-
+    @State private var searchHitIds: Set<Int64> = []   // 当前命中集合（搜索 / 提问 共用）
     @State private var refreshTick = 0
-    @State private var detailItem: TimelineItem?
+    @State private var showAnswer = true               // 答案卡折叠
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,46 +29,24 @@ struct RecallView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
-            ScrollViewReader { scrollProxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        if let r = askResult {
-                            AnswerCard(result: r) { frameId in
-                                withAnimation { scrollProxy.scrollTo(frameId, anchor: .top) }
-                            }
-                            .padding(.horizontal)
-                            .id("answer")
-                        }
-
-                        if items.isEmpty && !loading {
-                            ContentUnavailableView(
-                                askResult == nil ? "暂无可显示的帧" : "时间窗内无 done 帧",
-                                systemImage: "clock.arrow.circlepath",
-                                description: Text(askResult == nil
-                                    ? "切换日期或等下一次采集；菜单栏可控制采集开关。"
-                                    : "调整时间窗或换问题。")
-                            )
-                            .padding(.top, 60)
-                        }
-
-                        ForEach(items) { item in
-                            RecallRow(
-                                item: item,
-                                highlighted: askResult?.hits.contains(where: { $0.id == item.id }) ?? false,
-                                onTap: { detailItem = item }
-                            )
-                            .id(item.id)
-                            .padding(.horizontal)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-                .onChange(of: askResult?.hits.first?.id) { _, newId in
-                    if let id = newId {
-                        withAnimation { scrollProxy.scrollTo(id, anchor: .center) }
-                    }
+            // 主区域：大图 + 答案叠层
+            ZStack(alignment: .topLeading) {
+                mainViewer
+                if let r = askResult, showAnswer {
+                    answerOverlay(r)
+                        .padding(12)
+                        .frame(maxWidth: 480)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.background.tertiary)
+
+            Divider()
+
+            // 底部：水平时间线
+            timelineStrip
+                .frame(height: 130)
+                .background(.background)
         }
         .navigationTitle("回溯")
         .toolbar {
@@ -75,26 +54,27 @@ struct RecallView: View {
                 DatePicker("", selection: $date, displayedComponents: .date)
                     .labelsHidden()
                     .onChange(of: date) { _, _ in
-                        askResult = nil
-                        load()
+                        clearAsk()
+                        load(autoSelect: true)
                     }
             }
         }
-        .task(id: refreshTick) { load() }
-        .sheet(item: $detailItem) { item in
-            FrameDetailSheet(item: item, neighbors: items, onSelect: { detailItem = $0 })
-                .frame(minWidth: 900, minHeight: 600)
-        }
+        .task(id: refreshTick) { load(autoSelect: selectedId == nil) }
+        .onAppear { load(autoSelect: true) }
         .alert("失败", isPresented: .constant(lastError != nil), actions: {
             Button("好的") { lastError = nil }
         }, message: { Text(lastError ?? "") })
         .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
-            // 只在显示当天且未在搜索/提问态下自动刷新
-            if Calendar.current.isDateInToday(date) && askResult == nil && query.isEmpty {
+            // 只有当前显示当天 + 没在搜索/提问 + 未手动选过帧 时自动刷新
+            if Calendar.current.isDateInToday(date) && askResult == nil && query.isEmpty && selectedId == items.first?.id {
                 refreshTick &+= 1
             }
         }
+        .onKeyPress(.leftArrow) { navigate(-1); return .handled }
+        .onKeyPress(.rightArrow) { navigate(1); return .handled }
     }
+
+    // MARK: - Top bar
 
     private var queryBar: some View {
         HStack(spacing: 8) {
@@ -109,7 +89,9 @@ struct RecallView: View {
                 .disabled(asking || query.trimmingCharacters(in: .whitespaces).isEmpty)
             if askResult != nil || !query.isEmpty {
                 Button {
-                    askResult = nil; query = ""; load()
+                    clearAsk()
+                    query = ""
+                    load(autoSelect: true)
                 } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
                 .buttonStyle(.plain)
                 .help("清空")
@@ -117,26 +99,167 @@ struct RecallView: View {
         }
     }
 
-    private func load() {
+    // MARK: - Main viewer (large image)
+
+    private var mainViewer: some View {
+        Group {
+            if let item = currentItem {
+                VStack(spacing: 0) {
+                    if let img = NSImage(contentsOfFile: item.frame.imagePath) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ContentUnavailableView("图像缺失", systemImage: "photo.badge.exclamationmark",
+                                               description: Text(item.frame.imagePath))
+                    }
+                    metaBar(item)
+                }
+            } else {
+                ContentUnavailableView(
+                    loading ? "加载中…" : "今日无可显示的帧",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text(loading ? "" : "切换日期或等下一次采集")
+                )
+            }
+        }
+    }
+
+    private func metaBar(_ item: TimelineItem) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(timeText(item.frame.capturedAt)).font(.title2).bold().monospacedDigit()
+                    if let app = item.analysis?.app, !app.isEmpty {
+                        Text("·").foregroundStyle(.secondary)
+                        Text(app).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    statusBadge(item.frame.analysisStatus)
+                    Text("\(currentIndex + 1) / \(items.count)")
+                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+                if let summary = item.analysis?.summary, !summary.isEmpty {
+                    Text(summary).font(.callout).lineLimit(3)
+                }
+                if let key = item.analysis?.keyText, !key.isEmpty {
+                    Text(key).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background)
+    }
+
+    // MARK: - Answer overlay
+
+    private func answerOverlay(_ r: AskResult) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "sparkles").foregroundStyle(.blue)
+                Text(r.usedVision ? "答案（含画面追问）" : "答案").font(.headline)
+                Spacer()
+                Button {
+                    showAnswer.toggle()
+                } label: {
+                    Image(systemName: "chevron.up")
+                        .rotationEffect(showAnswer ? .zero : .degrees(180))
+                }
+                .buttonStyle(.plain)
+            }
+            if r.degraded {
+                Label("Tier-2 不支持视觉，已降级", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2).foregroundStyle(.orange)
+            }
+            ScrollView {
+                Markdown(r.answer)
+                    .markdownTheme(.gitHub)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 220)
+            HStack {
+                Text("窗：\(formatTime(r.plan.rangeStartMs))→\(formatTime(r.plan.rangeEndMs))")
+                Spacer()
+                Text("FTS \(r.diagnostics.ftsHitCount)·Emb \(r.diagnostics.embeddingHitCount)·命中 \(r.hits.count)")
+            }
+            .font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .glassEffect(.regular.tint(.blue.opacity(0.05)), in: .rect(cornerRadius: 12))
+    }
+
+    // MARK: - Bottom timeline strip
+
+    private var timelineStrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(alignment: .top, spacing: 6) {
+                    ForEach(items) { item in
+                        ThumbCell(
+                            item: item,
+                            isSelected: item.id == selectedId,
+                            isHit: searchHitIds.contains(item.id),
+                            onTap: { selectedId = item.id }
+                        )
+                        .id(item.id)
+                    }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+            }
+            .onChange(of: selectedId) { _, newId in
+                if let id = newId {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(id, anchor: .center)
+                    }
+                }
+            }
+            .onChange(of: items.count) { _, _ in
+                if let id = selectedId { proxy.scrollTo(id, anchor: .center) }
+            }
+        }
+    }
+
+    // MARK: - data
+
+    private var currentItem: TimelineItem? {
+        items.first { $0.id == selectedId } ?? items.first
+    }
+
+    private var currentIndex: Int {
+        guard let id = selectedId, let i = items.firstIndex(where: { $0.id == id }) else { return 0 }
+        return i
+    }
+
+    private func navigate(_ delta: Int) {
+        guard let id = selectedId, let i = items.firstIndex(where: { $0.id == id }) else { return }
+        let next = max(0, min(items.count - 1, i + delta))
+        selectedId = items[next].id
+    }
+
+    private func load(autoSelect: Bool) {
         loading = true
         defer { loading = false }
         do {
             if !query.isEmpty && askResult == nil {
-                // 关键字搜索模式
                 let hits = try Retriever.search(query: query, limit: 200)
-                items = hits.map { TimelineItem(frame: $0.frame, analysis: $0.analysis) }
-            } else if let r = askResult {
-                // 提问模式：取该日的全部帧 + 命中帧高亮
+                let hitIds = Set(hits.compactMap { $0.frame.id })
+                searchHitIds = hitIds
                 items = try loadDay(date: date)
-                let hitIds = Set(r.hits.compactMap { $0.frame.id })
-                items.sort { (a, b) in
-                    if hitIds.contains(a.id) != hitIds.contains(b.id) {
-                        return hitIds.contains(a.id)
-                    }
-                    return a.frame.capturedAt > b.frame.capturedAt
-                }
             } else {
+                searchHitIds = Set(askResult?.hits.compactMap { $0.frame.id } ?? [])
                 items = try loadDay(date: date)
+            }
+            // items 是按 captured_at DESC 排（最新在前）
+            if autoSelect || selectedId == nil || !items.contains(where: { $0.id == selectedId }) {
+                // 优先跳到第一个命中；没命中则第一帧
+                if let first = items.first(where: { searchHitIds.contains($0.id) }) {
+                    selectedId = first.id
+                } else {
+                    selectedId = items.first?.id
+                }
             }
         } catch {
             lastError = "加载失败：\(error.localizedDescription)"
@@ -150,9 +273,10 @@ struct RecallView: View {
         let end = Int64(cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: date))!.timeIntervalSince1970 * 1000)
         return try Database.shared.pool.read { db in
             let frames = try FrameRow
-                .filter(sql: "captured_at >= ? AND captured_at < ?", arguments: [start, end])
+                .filter(sql: "captured_at >= ? AND captured_at < ? AND analysis_status != 'skipped'",
+                        arguments: [start, end])
                 .order(sql: "captured_at DESC")
-                .limit(500)
+                .limit(800)
                 .fetchAll(db)
             return frames.compactMap { f -> TimelineItem? in
                 guard let id = f.id else { return nil }
@@ -165,8 +289,8 @@ struct RecallView: View {
     private func runSearch() {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return }
-        askResult = nil
-        load()
+        clearAsk()
+        load(autoSelect: true)
     }
 
     private func runAsk() {
@@ -178,98 +302,36 @@ struct RecallView: View {
             await MainActor.run {
                 askResult = r
                 asking = false
-                load()
+                showAnswer = true
+                load(autoSelect: true)
             }
         }
     }
-}
 
-struct TimelineItem: Identifiable, Hashable {
-    var id: Int64 { frame.id ?? 0 }
-    let frame: FrameRow
-    let analysis: AnalysisRow?
-    static func == (l: Self, r: Self) -> Bool { l.id == r.id }
-    func hash(into h: inout Hasher) { h.combine(id) }
-}
-
-private struct RecallRow: View {
-    let item: TimelineItem
-    let highlighted: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            thumbnail
-                .frame(width: 240, height: 150)
-                .clipShape(.rect(cornerRadius: 10))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(highlighted ? Color.accentColor.opacity(0.8) : Color.secondary.opacity(0.2),
-                                lineWidth: highlighted ? 2 : 0.5)
-                }
-                .shadow(color: highlighted ? .accentColor.opacity(0.3) : .clear, radius: 6)
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(timeText).font(.headline).monospacedDigit()
-                    if highlighted {
-                        Image(systemName: "sparkles").foregroundStyle(.tint).font(.caption)
-                    }
-                    Spacer()
-                    statusBadge
-                }
-                if let app = item.analysis?.app, !app.isEmpty {
-                    Text(app + (item.analysis?.windowTitle.map { " · \($0)" } ?? ""))
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                if let summary = item.analysis?.summary, !summary.isEmpty {
-                    Text(summary).font(.callout).lineLimit(3)
-                } else if item.frame.analysisStatus == "skipped" {
-                    Text("（与上一帧相似，已去重）").font(.callout).foregroundStyle(.secondary)
-                } else if item.frame.analysisStatus == "failed" {
-                    Text("分析失败").font(.callout).foregroundStyle(.red)
-                } else {
-                    Text("待分析…").font(.callout).foregroundStyle(.secondary)
-                }
-                if let key = item.analysis?.keyText, !key.isEmpty {
-                    Text(key).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .background {
-            if highlighted {
-                Color.accentColor.opacity(0.05)
-            }
-        }
-        .contentShape(.rect(cornerRadius: 10))
-        .onTapGesture { onTap() }
+    private func clearAsk() {
+        askResult = nil
+        searchHitIds = []
     }
 
-    private var thumbnail: some View {
-        if let img = NSImage(contentsOfFile: item.frame.imagePath) {
-            return AnyView(Image(nsImage: img).resizable().aspectRatio(contentMode: .fill))
-        } else {
-            return AnyView(Color.secondary.opacity(0.1))
-        }
-    }
+    // MARK: - format helpers
 
-    private var timeText: String {
-        let d = Date(timeIntervalSince1970: TimeInterval(item.frame.capturedAt) / 1000)
+    private func timeText(_ ms: Int64) -> String {
         let f = DateFormatter(); f.dateFormat = "HH:mm:ss"
-        return f.string(from: d)
+        return f.string(from: Date(timeIntervalSince1970: TimeInterval(ms) / 1000))
     }
 
-    private var statusBadge: some View {
-        let s = item.frame.analysisStatus
+    private func formatTime(_ ms: Int64) -> String {
+        let f = DateFormatter(); f.dateFormat = "MM-dd HH:mm"
+        return f.string(from: Date(timeIntervalSince1970: TimeInterval(ms) / 1000))
+    }
+
+    private func statusBadge(_ s: String) -> some View {
         let (label, color): (String, Color) = {
             switch s {
             case "done": return ("done", .green)
             case "pending": return ("pending", .secondary)
             case "analyzing": return ("analyzing", .blue)
             case "failed": return ("failed", .red)
-            case "skipped": return ("skipped", .gray)
             default: return (s, .secondary)
             }
         }()
@@ -281,76 +343,56 @@ private struct RecallRow: View {
     }
 }
 
-/// 答案卡：Markdown 答案 + 引用帧缩略图（点击 jumpTo）
-private struct AnswerCard: View {
-    let result: AskResult
-    let onJumpToFrame: (Int64) -> Void
+struct TimelineItem: Identifiable, Hashable {
+    var id: Int64 { frame.id ?? 0 }
+    let frame: FrameRow
+    let analysis: AnalysisRow?
+    static func == (l: Self, r: Self) -> Bool { l.id == r.id }
+    func hash(into h: inout Hasher) { h.combine(id) }
+}
+
+private struct ThumbCell: View {
+    let item: TimelineItem
+    let isSelected: Bool
+    let isHit: Bool
+    let onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "sparkles").foregroundStyle(.blue)
-                Text(result.usedVision ? "答案（含画面追问）" : "答案").font(.headline)
-                Spacer()
-                Text("\(result.provider) · \(result.model) · \(result.latencyMs)ms")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if result.degraded {
-                Label("当前 Tier-2 模型不支持视觉，已降级为纯 metadata 回答",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption).foregroundStyle(.orange)
-            }
-            Markdown(result.answer)
-                .markdownTheme(.gitHub)
-                .textSelection(.enabled)
-            if !result.hits.isEmpty {
-                Divider()
-                Text("引用帧（点击跳到对应时间）— 共 \(result.hits.count) 条")
-                    .font(.caption).foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(result.hits.prefix(12)) { h in
-                            Button { onJumpToFrame(h.id) } label: {
-                                if let img = NSImage(contentsOfFile: h.frame.imagePath) {
-                                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fill)
-                                        .frame(width: 140, height: 88)
-                                        .clipShape(.rect(cornerRadius: 8))
-                                        .overlay {
-                                            RoundedRectangle(cornerRadius: 8).stroke(.quaternary, lineWidth: 0.5)
-                                        }
-                                } else {
-                                    RoundedRectangle(cornerRadius: 8).fill(.secondary.opacity(0.1))
-                                        .frame(width: 140, height: 88)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+        VStack(spacing: 4) {
+            thumb
+                .frame(width: 160, height: 96)
+                .clipShape(.rect(cornerRadius: 6))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(borderColor, lineWidth: isSelected ? 2.5 : (isHit ? 2 : 0.5))
                 }
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text("时间窗：\(formatTime(result.plan.rangeStartMs)) → \(formatTime(result.plan.rangeEndMs))")
-                    Spacer()
-                    if !result.diagnostics.keywords.isEmpty {
-                        Text("分词：\(result.diagnostics.keywords.joined(separator: " · "))")
-                    }
-                }
-                HStack {
-                    Text("FTS 表达式：\(result.diagnostics.ftsExpression.isEmpty ? "(空)" : result.diagnostics.ftsExpression)")
-                        .lineLimit(1)
-                    Spacer()
-                    Text("命中：FTS \(result.diagnostics.ftsHitCount) · Emb \(result.diagnostics.embeddingHitCount) · 合并 \(result.hits.count)" + (result.diagnostics.fellBackToWindow ? "（时间窗兜底）" : ""))
-                }
-            }
-            .font(.caption).foregroundStyle(.secondary)
+                .shadow(color: isHit ? .accentColor.opacity(0.4) : .clear, radius: 4)
+            Text(timeText)
+                .font(.caption2)
+                .monospacedDigit()
+                .foregroundStyle(isSelected ? .primary : .secondary)
         }
-        .padding(14)
-        .glassEffect(.regular.tint(.blue.opacity(0.05)), in: .rect(cornerRadius: 12))
+        .contentShape(.rect)
+        .onTapGesture { onTap() }
     }
 
-    private func formatTime(_ ms: Int64) -> String {
-        let f = DateFormatter(); f.dateFormat = "MM-dd HH:mm"
-        return f.string(from: Date(timeIntervalSince1970: TimeInterval(ms) / 1000))
+    private var borderColor: Color {
+        if isSelected { return .accentColor }
+        if isHit { return .accentColor.opacity(0.7) }
+        return .secondary.opacity(0.2)
+    }
+
+    private var thumb: some View {
+        if let img = NSImage(contentsOfFile: item.frame.imagePath) {
+            return AnyView(Image(nsImage: img).resizable().aspectRatio(contentMode: .fill))
+        } else {
+            return AnyView(Color.secondary.opacity(0.1))
+        }
+    }
+
+    private var timeText: String {
+        let d = Date(timeIntervalSince1970: TimeInterval(item.frame.capturedAt) / 1000)
+        let f = DateFormatter(); f.dateFormat = "HH:mm"
+        return f.string(from: d)
     }
 }

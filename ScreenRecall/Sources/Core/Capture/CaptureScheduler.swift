@@ -14,14 +14,21 @@ final class CaptureScheduler {
     private var lastPaused: Bool = true
     private var running: Bool = false
 
+    /// 锁屏状态。由 distributed notification 驱动；启动时用 CGSession 同步一次。
+    private var screenLocked: Bool = false
+    private var lockObservers: [NSObjectProtocol] = []
+
     func start() {
         guard !running else { return }
         running = true
         DebugFile.write("CaptureScheduler.start() called")
         attachWakeObserver()
+        attachLockObservers()
+        // 同步一次当前状态（防止启动时已经锁屏）
+        screenLocked = currentCGSessionLocked()
         observeSettings()
         applyConfig(force: true)
-        DebugFile.write("CaptureScheduler started, paused=\(SettingsStore.shared.settings.capture.paused) intervalSec=\(SettingsStore.shared.settings.capture.intervalSec)")
+        DebugFile.write("CaptureScheduler started, paused=\(SettingsStore.shared.settings.capture.paused) intervalSec=\(SettingsStore.shared.settings.capture.intervalSec) initialLocked=\(screenLocked)")
     }
 
     func stop() {
@@ -30,10 +37,39 @@ final class CaptureScheduler {
         timer = nil
         if let o = observer { NSWorkspace.shared.notificationCenter.removeObserver(o) }
         observer = nil
+        for o in lockObservers {
+            DistributedNotificationCenter.default().removeObserver(o)
+        }
+        lockObservers.removeAll()
         settingsObserver?.cancel()
         settingsObserver = nil
         AppState.shared.captureEnabled = false
         AppLogger.capture.info("CaptureScheduler stopped")
+    }
+
+    /// 监听 com.apple.screenIsLocked / Unlocked 这两个 distributed notification
+    /// 是 macOS 上检测锁屏最权威的方式（loginwindow 会发）。
+    private func attachLockObservers() {
+        let center = DistributedNotificationCenter.default()
+        let lockObs = center.addObserver(
+            forName: NSNotification.Name("com.apple.screenIsLocked"),
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.screenLocked = true
+                DebugFile.write("screen locked (distributed notification)")
+            }
+        }
+        let unlockObs = center.addObserver(
+            forName: NSNotification.Name("com.apple.screenIsUnlocked"),
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.screenLocked = false
+                DebugFile.write("screen unlocked (distributed notification)")
+            }
+        }
+        lockObservers = [lockObs, unlockObs]
     }
 
     private func attachWakeObserver() {
@@ -88,7 +124,10 @@ final class CaptureScheduler {
     }
 
     private func tick() async {
-        if isLocked() { return }
+        if screenLocked || currentCGSessionLocked() {
+            // 锁屏期间完全不采集（也省 CPU、Tier-1 配额、磁盘）
+            return
+        }
         let s = await MainActor.run { SettingsStore.shared.settings }
         let auth = await MainActor.run { AppState.shared.screenRecordingAuthorized }
         if !auth {
@@ -134,9 +173,8 @@ final class CaptureScheduler {
         }
     }
 
-    private func isLocked() -> Bool {
-        // 仅当 OnConsole 且 CGSSessionScreenIsLocked=true 才视为锁屏。
-        // 单独 CGSSessionScreenIsLocked=1 在 Sidecar / 多 session 场景下可能误报。
+    /// 用 CGSession 同步检查（启动期 / fallback）。要求 OnConsole + ScreenIsLocked。
+    private func currentCGSessionLocked() -> Bool {
         guard let dict = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
         let onConsole = (dict["kCGSessionOnConsoleKey"] as? NSNumber)?.boolValue ?? false
         let locked = (dict["CGSSessionScreenIsLocked"] as? NSNumber)?.boolValue ?? false
